@@ -2,7 +2,7 @@
 
 React component for the PSP payment widget. It shows the platform's payment page in an `<iframe>` on your site and tells your interface what happens there: the invoice loaded, the status changed, the invoice is paid or expired.
 
-- Your server builds the link with [`@qubiq-psp/sdk`](https://github.com/qubic-psp/node-sdk#payment-widget). This package only renders it and reports events.
+- Your server builds the link with [`@qubiq-psp/sdk`](https://github.com/qubiq-psp/node-sdk#payment-widget). This package only renders it and reports events.
 - Only links of the platform payment page are shown, and messages are accepted only from that origin and from this exact iframe. Every field is type-checked.
 - The iframe height follows the page content, so the frame needs no scroll bar of its own.
 - Works with React 18 and 19 and with server rendering (Next.js and other React frameworks).
@@ -56,7 +56,7 @@ Requires React 18 or newer (`react` is a peer dependency). The code targets ES20
 
 ## Quick start
 
-**Server.** Build the link each time you render the order page: it is free, and the default lifetime is 24 hours. See [Payment widget](https://github.com/qubic-psp/node-sdk#payment-widget) in the `@qubiq-psp/sdk` README for branding, locale and lifetime options.
+**Server.** Build the link each time you render the order page: it is free, and the default lifetime is 24 hours. See [Payment widget](https://github.com/qubiq-psp/node-sdk#payment-widget) in the `@qubiq-psp/sdk` README for branding, locale and lifetime options.
 
 ```ts
 import { PspClient } from '@qubiq-psp/sdk';
@@ -171,7 +171,7 @@ So keep `url` stable while the order page is open: build it on the server once p
 
 ## Security
 
-- **Ship on webhooks only.** Anyone can post messages to your page or edit your page's JavaScript in their own browser. Treat `onPaid` as a hint for the interface. Your server learns about payments from the signed `invoice.paid` / `invoice.overpaid` webhook (see [Webhooks](https://github.com/qubic-psp/node-sdk#webhooks) of `@qubiq-psp/sdk`).
+- **Ship on webhooks only.** Anyone can post messages to your page or edit your page's JavaScript in their own browser. Treat `onPaid` as a hint for the interface. Your server learns about payments from the signed `invoice.paid` / `invoice.overpaid` webhook (see [Webhooks](https://github.com/qubiq-psp/node-sdk#webhooks) of `@qubiq-psp/sdk`).
 - **The link must come from your server.** Pass `url` from your server-rendered page or your own API, never from the address bar, a query parameter, browser storage or a message: anyone can put a link to a look-alike page with their own address there. The component helps: it shows only links of `checkoutOrigin` (`https://pay.psp.qubiq.cc` by default) and refuses any other origin with `link_invalid`. If you run your own payment page stand, set `checkoutOrigin` from the same config as `PSP_CHECKOUT_URL` of `@qubiq-psp/sdk`.
 - **Origin and source checks are done for you.** A message is accepted only when `event.origin` equals `checkoutOrigin` and `event.source` is the window of this iframe; then `source: 'psp-checkout'`, `v: 1`, the type and every field are checked. Anything else is ignored. Unknown fields are dropped. The messages carry no addresses or amounts.
 - **No missed first message.** The page starts loading only after the component listens to it, so a buyer who opens an already paid invoice still triggers `onPaid`.

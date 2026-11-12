@@ -2,6 +2,10 @@
 
 All notable changes to `@qubiq-psp/react` are documented here. The project follows [Semantic Versioning](https://semver.org/).
 
+## 0.1.2 — 2026-11-10
+
+No code changes: the GitHub organization was renamed from `qubic-psp` to `qubiq-psp`. `repository`, `homepage` and `bugs` in `package.json` point to `github.com/qubiq-psp`, so npm provenance matches the repository the package is built from. This release also validates the npm trusted publisher of the renamed organization.
+
 ## 0.1.1 — 2026-10-29
 
 No code changes: the first release through npm trusted publishing (OIDC) — GitHub Actions stages the version without a stored token, a maintainer approves it with 2FA.
