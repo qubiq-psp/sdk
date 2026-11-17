@@ -293,7 +293,7 @@ export function InvoiceNewScreen() {
   );
 }
 
-/** Invoice amount limits from the tariff's `deposit` rule for the pair (gateway docs 13.9). */
+/** Invoice amount limits from the tariff's `deposit` rule for the pair (the platform's tariff rules). */
 function limitsText(rule: ReturnType<typeof tariffRule>, pending: boolean, loaded: boolean): string {
   if (pending) return 'Amount limits: loading the tariff…';
   if (!loaded) return 'Amount limits unknown: the tariff did not load';

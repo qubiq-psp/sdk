@@ -14,7 +14,7 @@ import { formatTime } from '@/lib/format';
 const yesNo = (v: boolean) =>
   v ? <ToneBadge tone="success">yes</ToneBadge> : <ToneBadge tone="neutral">no</ToneBadge>;
 
-/** How far the browser clock is from the platform's: signatures allow a few minutes (gateway docs 13.2). */
+/** How far the browser clock is from the platform's: signatures allow a few minutes (the request-signing rules). */
 function skew(serverSeconds: number): string {
   const seconds = Math.round(Date.now() / 1000 - serverSeconds);
   if (Math.abs(seconds) < 2) return 'in sync';

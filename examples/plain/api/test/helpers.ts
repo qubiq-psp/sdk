@@ -6,7 +6,7 @@ import type { AddressInfo } from 'node:net';
 import { createApp, type AppOptions } from '../src/app.ts';
 import { loadConfig, type Config } from '../src/config.ts';
 
-// The made-up `shop-example` key and secret of gateway docs 13.5 (published on purpose)
+// The made-up `shop-example` key and secret of the platform's signing examples (published on purpose)
 export const SHOP_KEY = 'psp_pk_3Kd9Lm2Qx7Rt5Vb8Nw1Hc4Zp';
 export const SHOP_SECRET = 'psp_sk_9fT2kQ7mW4xL1vR8nB5cJ3hD6gZ0aY2eUq4N';
 /** The secret with the last character changed — the negative rows of the docs. */

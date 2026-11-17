@@ -125,7 +125,7 @@ describe('POST /api/invoices/{invoiceId}/checkout-link', () => {
     const { url, token, expiresAt } = (await res.json()) as { url: string; token: string; expiresAt: string };
     expect(url).toBe(`${CHECKOUT_URL}/#${token}`);
 
-    // gateway docs 20.2: v1.<base64url payload>.<base64url HMAC-SHA256(secret, "psp-checkout-v1." + payload)>
+    // The widget-token format: v1.<base64url payload>.<base64url HMAC-SHA256(secret, "psp-checkout-v1." + payload)>
     const [version, payload = '', signature] = token.split('.');
     expect(version).toBe('v1');
     expect(signature).toBe(createHmac('sha256', API_SECRET).update(`psp-checkout-v1.${payload}`).digest('base64url'));

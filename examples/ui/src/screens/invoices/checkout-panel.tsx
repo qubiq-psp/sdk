@@ -83,7 +83,7 @@ function fieldOf(error: unknown): string | null {
 }
 
 /**
- * The payment widget of an invoice (gateway docs 20): the backend signs a link offline, the panel shows the payment
+ * The payment widget of an invoice: the backend signs a link offline, the panel shows the payment
  * page in a frame — as a shop's order page would — and the log of what the page reports.
  */
 export function CheckoutPanel({

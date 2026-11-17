@@ -1,6 +1,6 @@
 // One signed attempt to the PSP Merchant API with the global `fetch` of Node.js: sign the exact TARGET and body bytes
 // (signer.ts), send them, read the answer. No retries here — see "Retries" in the README for what a production client
-// adds (gateway docs 13-merchant-api.md, 13.10). Everything about the attempt is returned for the request log; the
+// adds (the platform's retry rules). Everything about the attempt is returned for the request log; the
 // secret is used only as the HMAC key and appears nowhere in the result.
 import { resolveTarget, signRequest } from './signer.ts';
 import { VERSION } from './version.ts';

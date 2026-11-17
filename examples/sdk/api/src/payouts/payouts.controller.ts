@@ -32,7 +32,7 @@ export class PayoutsController {
   /**
    * The amount with the fees is frozen at once; the request waits for approval. Idempotent by `externalId` (`201`
    * new, `200` a repeat). The platform may take up to 130 s: the SDK waits at least 180 s for this call and repeats
-   * a lost one with the same body (gateway docs 13.10).
+   * a lost one with the same body (the platform's retry and timeout rules).
    */
   @Post()
   @MerchantApiCall('createPayout')

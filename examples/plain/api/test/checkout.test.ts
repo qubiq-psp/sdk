@@ -4,7 +4,7 @@ import { CheckoutInputError, createCheckoutLink, createCheckoutToken } from '../
 import type { CheckoutLinkView, ExampleError } from '../src/types.ts';
 import { makeApp, SHOP_KEY, SHOP_SECRET, WRONG_SECRET } from './helpers.ts';
 
-// The test vectors of gateway docs 20-pay.md, 20.4
+// The published test vectors of the payment-widget token
 const INVOICE = '97da92f5-45c0-411b-9ed5-6793b396cd5f';
 const EXP = 1790769600;
 const NOW = 1790683200;
@@ -38,7 +38,7 @@ const fieldOf = (fn: () => unknown): string => {
   throw new Error('no error');
 };
 
-describe('createCheckoutToken — gateway 20.4 vectors', () => {
+describe('createCheckoutToken — the published token vectors', () => {
   it('vector 1: with branding and locale', () => {
     expect(Buffer.byteLength(JSON_1)).toBe(249);
     expect(Buffer.from(PAYLOAD_1, 'base64url').toString('utf8')).toBe(JSON_1);
@@ -80,7 +80,7 @@ describe('createCheckoutToken — gateway 20.4 vectors', () => {
   });
 });
 
-describe('createCheckoutToken — the rules of 20.2–20.3', () => {
+describe('createCheckoutToken — the option rules of the link', () => {
   it('refuses a malformed key, secret, invoice id or expiry', () => {
     expect(fieldOf(() => createCheckoutToken({ ...base, apiKey: 'psp_pk_short' }))).toBe('apiKey');
     expect(fieldOf(() => createCheckoutToken({ ...base, apiSecret: 'secret' }))).toBe('apiSecret');

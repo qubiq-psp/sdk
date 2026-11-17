@@ -1,13 +1,13 @@
 // What the payment widget tells the screen, the same for both builds. These types are the UI's own: the plain build
 // must not take anything from @qubiq-psp/react.
 
-/** Statuses of an invoice the payment page reports (gateway docs 20.9). */
+/** Statuses of an invoice the payment page reports (the payment page's message protocol). */
 export type InvoiceStatus =
   'active' | 'partially_paid' | 'paid' | 'overpaid' | 'expired' | 'expired_partial' | 'cancelled';
 
 /**
  * One event of the widget for the log:
- * - `ready`, `status`, `resize`, `error` — the messages of the payment page (gateway docs 20.9);
+ * - `ready`, `status`, `resize`, `error` — the messages of the payment page (the payment page's message protocol);
  * - `paid`, `expired` — once per link, when the status first becomes paid/overpaid or expired/expired_partial
  *   (as `onPaid`/`onExpired` of `<PspCheckout>`);
  * - `rejected` — a `psp-checkout` message that failed a check: another origin, another window or a wrong shape

@@ -1,4 +1,4 @@
-// A link to the PSP payment widget — gateway docs 20-pay.md, 20.2–20.4. Built offline, no request to the platform:
+// A link to the PSP payment widget, by the platform's link rules. Built offline, no request to the platform:
 //
 //   link      = <payment page origin> + "/#" + token        (a fragment: browsers never send it to a server)
 //   token     = "v1." + payload + "." + signature
@@ -6,7 +6,7 @@
 //                                                             b: branding, l: locale
 //   signature = base64url(HMAC-SHA256(key = UTF-8 bytes of the API secret, message = "psp-checkout-v1." + payload))
 //
-// The rules of the options are those of `psp.checkout.createUrl()` of @qubiq-psp/sdk and of gateway 20.3. Whoever has
+// The rules of the options are those of `psp.checkout.createUrl()` of @qubiq-psp/sdk and of the platform. Whoever has
 // the link sees the invoice: build it only for the buyer who owns the order, at every render of the order page.
 // This file depends on node:crypto only: copy it into your backend.
 import { createHmac } from 'node:crypto';
@@ -62,7 +62,7 @@ const SECRET_RE = /^psp_sk_(test_|live_)?[0-9A-Za-z]{36}$/;
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
 const COLOR_RE = /^#[0-9a-fA-F]{6}$/;
 const CONTROL_RE = /[\u0000-\u001f\u007f]/;
-/** The keys of `b` in the order of gateway 20.3: the vectors of 20.4 are built in this order. */
+/** The keys of `b` in the platform's order: the published token vectors are built in this order. */
 const BRANDING_KEYS = ['companyName', 'logoUrl', 'accentColor', 'theme', 'title'] as const;
 
 const isObject = (value: unknown): value is Record<string, unknown> =>

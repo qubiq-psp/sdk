@@ -430,7 +430,7 @@ export interface paths {
          * @description Passthrough of `GET /api/v1/webhook/deliveries`.
          *
          *     The delivery id (`deliveryId`, `id` of a delivery) is the notification id: equal to `X-Webhook-Id` and to `id` of
-         *     the webhook body, the same in every attempt and redelivery (webhook-service docs 13.2, 13.13). So
+         *     the webhook body, the same in every attempt and redelivery (the platform's webhook delivery rules). So
          *     `GET /api/received-webhooks?webhookId={deliveryId}` lists what the receiver got of a delivery.
          */
         get: operations["listDeliveries"];
@@ -454,7 +454,7 @@ export interface paths {
          * @description Passthrough of `GET /api/v1/webhook/deliveries/{deliveryId}`.
          *
          *     The delivery id (`deliveryId`, `id` of a delivery) is the notification id: equal to `X-Webhook-Id` and to `id` of
-         *     the webhook body, the same in every attempt and redelivery (webhook-service docs 13.2, 13.13). So
+         *     the webhook body, the same in every attempt and redelivery (the platform's webhook delivery rules). So
          *     `GET /api/received-webhooks?webhookId={deliveryId}` lists what the receiver got of a delivery.
          */
         get: operations["getDelivery"];
@@ -518,7 +518,7 @@ export interface paths {
         put?: never;
         /**
          * A signed link to the payment page of an invoice
-         * @description Built offline with the API secret (gateway docs 20.2–20.3): sdk — `psp.checkout.createUrl()`, plain — its own
+         * @description Built offline with the API secret (the payment-widget link format): sdk — `psp.checkout.createUrl()`, plain — its own
          *     HMAC. No platform call and no request-log entry: the payment page checks the invoice itself when it opens.
          *     The UI shows `url` in an `<iframe>` (or `<PspCheckout url>` of `@qubiq-psp/react`).
          */
@@ -659,7 +659,7 @@ export interface paths {
          * Receiver of platform webhooks (called by the platform, not by the UI)
          * @description Public: nginx must not put basic auth on this path. The backend reads the raw body bytes before any parsing,
          *     at most 64 KB (the platform's largest webhook; a larger body is `413 example_payload_too_large` and is not
-         *     logged), and verifies them by webhook-service docs 13.6 with the API secret (and `PSP_API_PREVIOUS_SECRET` if
+         *     logged), and verifies them by the platform's webhook-signing rules with the API secret (and `PSP_API_PREVIOUS_SECRET` if
          *     set), with the semantics of the SDK's `verifyWebhook()` without `expectedMerchantId`. Every other request is
          *     stored in the received-webhooks log (and sent as the SSE event `webhook`) before the answer — a request whose
          *     signature did not verify with its first 512 bytes of body only, in a separate ring of the last 100 (see
@@ -750,7 +750,7 @@ export interface components {
             /** Format: date-time */
             serverTime: string;
         };
-        /** @description Appearance of the payment page (gateway docs 20.3). Text is shown as text, the logo only as an image. */
+        /** @description Appearance of the payment page. Text is shown as text, the logo only as an image. */
         CheckoutBranding: {
             companyName?: string;
             /** @description An `https:` URL without credentials and `#`. */
@@ -856,7 +856,7 @@ export interface components {
              *     where the SDK's `PspAuthError.localStringToSign` fills `stringToSign`.
              */
             signing: null | {
-                /** @description The six lines joined with `\n` (gateway docs 13.2). */
+                /** @description The six lines joined with `\n` (the request-signing rules). */
                 stringToSign: string;
                 bodySha256: string | null;
             };
@@ -869,7 +869,7 @@ export interface components {
             total: number;
         };
         /**
-         * @description `ok` or the first failed step — the reasons of the SDK's `WebhookVerificationError` (webhook-service docs 13.6).
+         * @description `ok` or the first failed step — the reasons of the SDK's `WebhookVerificationError` (the platform's webhook-signing rules).
          *     `merchant_mismatch` is not used: the backends do not pass `expectedMerchantId`.
          * @enum {string}
          */
@@ -5709,7 +5709,7 @@ export interface operations {
             path?: never;
             cookie?: never;
         };
-        /** @description The webhook body, version 1 (webhook-service docs 13.3). Stored as received, byte for byte. */
+        /** @description The webhook body, version 1 (the platform's webhook format). Stored as received, byte for byte. */
         requestBody: {
             content: {
                 "application/json": Record<string, never>;

@@ -65,7 +65,7 @@ async function signed(
 }
 
 describe('signing helpers against the documented test vectors', () => {
-  it('gateway 13.5: vector 1 (POST with a body) and vector 2 (GET)', () => {
+  it('request signature: vector 1 (POST with a body) and vector 2 (GET)', () => {
     const body =
       '{"externalId":"order-10530","network":"tron","asset":"USDT","amount":"50","description":"Заказ 10530","metadata":{"orderId":"10530"}}';
     expect(
@@ -90,7 +90,7 @@ describe('signing helpers against the documented test vectors', () => {
     ).toBe('v1=e336ed5f635db2db5de16f78a38feb28c86dd5245a0d92a2f2cf0f54e503d5f9');
   });
 
-  it('webhook-service 13.6: the webhook.test example', () => {
+  it('webhook signature: the webhook.test example', () => {
     const body =
       '{"id":"0b7f3d2e-8c41-4a9b-b6e5-1f2a3c4d5e6f","type":"webhook.test","version":1,"occurredAt":"2026-09-29T12:20:00.214Z","network":"tron","chain":"nile","merchantId":"6a1f3c9e-2b4d-4e8a-9c71-5d0e8f2a4b13","data":{"test":true,"message":"Проверка после смены URL"}}';
     expect(signWebhook(DOCS_SECRET, 1790684400, body)).toBe(
@@ -98,7 +98,7 @@ describe('signing helpers against the documented test vectors', () => {
     );
   });
 
-  it('gateway 20.4: both token vectors verify; another secret or prefix does not', () => {
+  it('widget token: both published vectors verify; another secret or prefix does not', () => {
     const p2 =
       'eyJrIjoicHNwX3BrXzNLZDlMbTJReDdSdDVWYjhOdzFIYzRacCIsImkiOiI5N2RhOTJmNS00NWMwLTQxMWItOWVkNS02NzkzYjM5NmNkNWYiLCJlIjoxNzkwNzY5NjAwfQ';
     expect(signCheckoutPayload(DOCS_SECRET, p2)).toBe('guQrxJw9m2RlbNRkL3FPI08BJHsr_WzByGV6XPXrlak');
@@ -130,7 +130,7 @@ describe('fake gateway', () => {
   afterAll(() => gateway.close());
   beforeEach(() => gateway.reset());
 
-  describe('signature (gateway 13.4)', () => {
+  describe('signature checks', () => {
     it('accepts a correctly signed request and records it', async () => {
       const res = await signed(gateway, 'GET', '/api/v1/account');
       expect(res.status).toBe(200);

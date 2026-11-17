@@ -1031,7 +1031,7 @@ export function defineConformanceSuite(options: ConformanceOptions): void {
     // ---------------------------------------------------------------------------------------- widget link
 
     describe('POST /api/invoices/{invoiceId}/checkout-link', () => {
-      it('signs a link on PSP_CHECKOUT_URL with branding, locale and expiry (gateway 20.2)', async () => {
+      it('signs a link on PSP_CHECKOUT_URL with branding, locale and expiry (the widget-token format)', async () => {
         const branding = {
           companyName: 'Shop Example',
           logoUrl: 'https://shop.example/logo.png',

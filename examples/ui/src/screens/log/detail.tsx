@@ -77,7 +77,7 @@ export function RequestLogEntryScreen() {
             </Section>
             <Section
               title="Signature"
-              description="Merchant API requests are signed with HMAC-SHA256 over six lines (gateway docs 13.2): v1, method, path with query, timestamp, nonce, sha256 of the body"
+              description="Merchant API requests are signed with HMAC-SHA256 over six lines (the request-signing rules): v1, method, path with query, timestamp, nonce, sha256 of the body"
             >
               {e.signing ? (
                 <div className="flex flex-col gap-3">

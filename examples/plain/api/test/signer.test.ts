@@ -10,7 +10,7 @@ import {
 } from '../src/signer.ts';
 import { SHOP_KEY, SHOP_SECRET, WRONG_SECRET } from './helpers.ts';
 
-// The test vectors of gateway docs 13-merchant-api.md, 13.5
+// The published test vectors of the request signature
 const BODY_1 =
   '{"externalId":"order-10530","network":"tron","asset":"USDT","amount":"50","description":"Заказ 10530","metadata":{"orderId":"10530"}}';
 const TS_1 = '1790683200';
@@ -41,7 +41,7 @@ const vector2 = (target: string) =>
     nonce: NONCE_2,
   });
 
-describe('signRequest — gateway 13.5 vectors', () => {
+describe('signRequest — the published vectors', () => {
   it('vector 1: POST with a Cyrillic body', () => {
     expect(Buffer.byteLength(BODY_1)).toBe(138);
     const s = vector1(BODY_1);
@@ -64,7 +64,7 @@ describe('signRequest — gateway 13.5 vectors', () => {
   });
 });
 
-describe('signRequest — the negative rows of 13.5 "Checking your own implementation"', () => {
+describe('signRequest — the negative rows of "Checking your own implementation"', () => {
   const sig = (s: { headers: { 'X-Api-Signature': string } }) => s.headers['X-Api-Signature'];
 
   it('3: the body of Python json.dumps (170 bytes) is another signature', () => {

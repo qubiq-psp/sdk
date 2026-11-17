@@ -75,7 +75,7 @@ TypeScript sources (ESM) that vitest in a consumer runs as they are, with declar
   without credentials. Authentication is not part of the contract. A passthrough `401` from the platform has no
   `WWW-Authenticate` header, so it does not trigger the browser's basic-auth prompt; backends must not add one.
 - **JSON** everywhere, except `text/csv` of the statement and `text/event-stream` of `/api/stream`.
-- **Timeouts.** The platform answers any request within 180 s (gateway docs 13.10), so backends wait up to
+- **Timeouts.** The platform answers any request within 180 s, so backends wait up to
   `APP_UPSTREAM_TIMEOUT_MS` (default 180 000) per attempt and nginx `proxy_read_timeout` on `/api/` must be longer.
   `/api/stream` needs `proxy_buffering off`.
 - **No calls of its own.** A backend calls the platform only to serve a contract request — nothing at start-up, no
@@ -189,11 +189,11 @@ call: a body without `Content-Type: application/json` or that is not JSON, `X-Cl
   The request-log entries of that call have it as `callId`: the UI links an action to its log entries with
   `GET /api/request-log?callId=…`.
 
-**Attempts.** plain makes exactly one attempt per call. sdk keeps the SDK's default retry policy (gateway docs 13.10),
-because that is what a merchant gets: one call may produce several attempts, each one its own log entry with `attempt`
-1, 2, …, and the UI gets the outcome of the last. On repeated `503`/`429`/timeouts one UI action can therefore take
-minutes (backoff up to 60 s between attempts, up to 180 s per attempt): the UI shows the call as pending and the
-attempts appear in the log over SSE as they happen. There is no switch to turn retries off.
+**Attempts.** plain makes exactly one attempt per call. sdk keeps the SDK's default retry policy (the platform's retry
+and timeout rules), because that is what a merchant gets: one call may produce several attempts, each one its own log
+entry with `attempt` 1, 2, …, and the UI gets the outcome of the last. On repeated `503`/`429`/timeouts one UI action
+can therefore take minutes (backoff up to 60 s between attempts, up to 180 s per attempt): the UI shows the call as
+pending and the attempts appear in the log over SSE as they happen. There is no switch to turn retries off.
 
 **The CSV statement in sdk.** `psp.operations.getStatement({ ..., format: 'csv' })` returns the body as a string, and
 `getResponseMeta()` has nothing for a string. The status is always `200` on success, and the headers to pass through
@@ -299,20 +299,20 @@ data: {"id":"5f6a…","webhookId":"c650…","event":"invoice.paid","verifyResult
 `POST /webhooks/psp` — the URL to set with `PUT /api/webhook` is `webhookUrl` of `/api/config`.
 
 The platform's delivery id (`id` of a delivery, `deliveryId` of `/api/webhook/deliveries/{deliveryId}`) is the
-notification id: equal to `X-Webhook-Id` and to `id` of the body, the same in every attempt and redelivery
-(webhook-service docs 13.2, 13.13). So `GET /api/received-webhooks?webhookId={deliveryId}` lists what the receiver got
+notification id: equal to `X-Webhook-Id` and to `id` of the body, the same in every attempt and redelivery (the
+platform's webhook delivery rules). So `GET /api/received-webhooks?webhookId={deliveryId}` lists what the receiver got
 of a delivery, and a redelivery of an accepted webhook is a `duplicate`.
 
 1. The backend reads the raw body bytes before any parsing, at most 64 KB — the platform's largest webhook. A larger
    body is `413 example_payload_too_large`, refused while it arrives and not logged.
-2. It verifies them by webhook-service docs 13.6 with `PSP_API_SECRET`, and `PSP_API_PREVIOUS_SECRET` if set — sdk
-   with `verifyWebhook()` without `expectedMerchantId`, plain by the same steps. The result is `ok` or the first failed
-   step, in the SDK's words: `missing_header`, `bad_timestamp`, `timestamp_out_of_window`, `bad_signature_header`,
-   `signature_mismatch` (→ `401`), `bad_body`, `id_mismatch`, `type_mismatch`, `unsupported_version` (→ `400`),
-   `chain_mismatch` (→ `401`). Each entry also stores `signatureValid` (even when a later step failed),
-   `signedWith`, the clock skew and the expected `v1=` signature (sdk — `signWebhook()`) — the last three only over a
-   Unix-seconds `X-Webhook-Timestamp` (1–12 digits): the secret also keys the widget token, so it never signs an
-   arbitrary header value; signatures are compared in constant time.
+2. It verifies them by the platform's webhook-signing rules with `PSP_API_SECRET`, and `PSP_API_PREVIOUS_SECRET` if set
+   — sdk with `verifyWebhook()` without `expectedMerchantId`, plain by the same steps. The result is `ok` or the first
+   failed step, in the SDK's words: `missing_header`, `bad_timestamp`, `timestamp_out_of_window`,
+   `bad_signature_header`, `signature_mismatch` (→ `401`), `bad_body`, `id_mismatch`, `type_mismatch`,
+   `unsupported_version` (→ `400`), `chain_mismatch` (→ `401`). Each entry also stores `signatureValid` (even when a
+   later step failed), `signedWith`, the clock skew and the expected `v1=` signature (sdk — `signWebhook()`) — the last
+   three only over a Unix-seconds `X-Webhook-Timestamp` (1–12 digits): the secret also keys the widget token, so it
+   never signs an arbitrary header value; signatures are compared in constant time.
 3. A valid webhook whose `X-Webhook-Id` was already accepted with `2xx` is a `duplicate`.
 4. The answer follows `ReceiverSettings`:
    - `auto` — `200 { received: true, duplicate }` on `ok`, the status above with `{ errorCode, errorMessage }` otherwise;
@@ -332,8 +332,8 @@ of a delivery, and a redelivery of an accepted webhook is a `duplicate`.
 
 ## Payment widget link
 
-`POST /api/invoices/{invoiceId}/checkout-link` builds `{PSP_CHECKOUT_URL}/#v1.<payload>.<signature>` offline (gateway
-docs 20.2–20.3): sdk with `psp.checkout.createUrl()`, plain with its own HMAC. The input is the options of
+`POST /api/invoices/{invoiceId}/checkout-link` builds `{PSP_CHECKOUT_URL}/#v1.<payload>.<signature>` offline (the
+platform's widget-link rules): sdk with `psp.checkout.createUrl()`, plain with its own HMAC. The input is the options of
 `createUrl()`: `branding` (`companyName` 1–64, `logoUrl` https ≤ 1024, `accentColor` `#rrggbb`, `theme`, `title` 1–100),
 `locale` (`ru`/`en`), `expiresInSeconds` (1–604800, optional, default 86400). Options the SDK rejects are
 `400 example_invalid_request` from both backends. The backend does not check that the invoice exists: the payment page
@@ -384,7 +384,7 @@ the copy declares the `V1Statement` object for `text/csv` too; the contract decl
 - [ ] One request-log entry per attempt, with the fields above; SSE `request` for each, SSE `webhook` for each received
       webhook.
 - [ ] The receiver: raw-body verification, the SDK's reason codes and statuses, duplicates, `ReceiverSettings`.
-- [ ] Widget links by gateway docs 20.2–20.3 with the SDK's option rules.
+- [ ] Widget links in the platform's link format, with the SDK's option rules.
 - [ ] Never expose the secret or any part of it: not in `/api/config`, not in the logs, not in errors.
 - [ ] Accept webhooks signed with `PSP_API_PREVIOUS_SECRET` when it is set (sdk: the SDK reads the variable itself;
       plain: checks both secrets) and report `signedWith: "previous"`.
@@ -441,7 +441,7 @@ What the suite checks (each answer body is also validated against the contract s
 | Own errors            | Not-JSON body, a `text/plain` body and bad `X-Client-Request-Id` → `400 example_invalid_request` without a platform call; a cross-site `Origin` or `Sec-Fetch-Site: cross-site` on a `POST`/`PUT` → `403 example_forbidden` without a platform call, while a same-origin `Origin` and a request without one (curl) pass; a slow platform → `504 example_upstream_timeout` (`details.timeoutMs`), a closed connection → `502 example_upstream_unreachable`, an HTML `502` → `502 example_upstream_bad_response` (`details.status`) — each with `X-Example-Call-Id` and its log entry (`transportError` `timeout`/`network`, or the status); unknown route, log entry, received webhook → `404 example_not_found`; a bad log filter → `400`                                                                                                                                                   |
 | SSE                   | `ready` (with `backend`), a `request` event for a call (`id:` = entry id, also for `poll` calls), a `webhook` event for a received webhook; schemas                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                         |
 | Receiver              | A body over 64 KB → `413 example_payload_too_large`, not logged; a signed 64 KB webhook → `200`; valid → `200 {received: true, duplicate: false}`, logged `ok`/`current` with the raw body, `expectedSignature`, invoice fields; same `X-Webhook-Id` again → `duplicate: true`; another secret → `401 signature_mismatch`; 10 min old → `401 timestamp_out_of_window` with `signatureValid: true`; previous secret → `200`, `signedWith: previous`; no signature → `401 missing_header`; body id ≠ header → `400 id_mismatch`; `chain: mainnet` → `401 chain_mismatch`; `/api/receiver` defaults, `fixed`, `failNext` counting down, `delayMs`, bad settings → `400`; `?result=failed`; `DELETE` clears; a request without a valid signature keeps 512 bytes of body (`bodyTruncated`, `json: null`); a valid webhook stays in the log after 150 unsigned requests, which keep the last 100 |
-| Widget link           | `url` = `{PSP_CHECKOUT_URL}/#{token}`; the token verifies with the secret (gateway 20.2, the verifier is tested on the 20.4 vectors) with `k`, `i`, `b`, `l`, `e` = now + `expiresInSeconds`, `expiresAt` = `e`; defaults 24 h without `b`/`l`; no platform call; bad branding, `expiresInSeconds` > 604 800, an upper-case id → `400 example_invalid_request`                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              |
+| Widget link           | `url` = `{PSP_CHECKOUT_URL}/#{token}`; the token verifies with the secret (the platform's widget-token format; the verifier is tested on the published token vectors) with `k`, `i`, `b`, `l`, `e` = now + `expiresInSeconds`, `expiresAt` = `e`; defaults 24 h without `b`/`l`; no platform call; bad branding, `expiresInSeconds` > 604 800, an upper-case id → `400 example_invalid_request`                                                                                                                                                                                                                                                                                                                                                                                                                                                                                             |
 | Coverage              | The request log holds all 27 operationIds; every platform request was correctly signed                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                      |
 
 Where the contract leaves a choice to the backend, the suite checks only the guarantee: the number of attempts for
@@ -467,10 +467,10 @@ gateway.requests; // every request: operationId, target, headers, body, auth {ok
 await gateway.close();
 ```
 
-- Signature: gateway 13.4 steps 5–9 in order (`missing_header`, `malformed_header`, `timestamp_out_of_window` ±300 s,
-  `unknown_key`, `bad_signature` with `stringToSign`, `nonce_reused`) → `401 api_auth_failed`. Injections apply only
-  to correctly signed requests.
-- Then step 12: an unknown query parameter or body field, a missing required field, a bad `X-Client-Request-Id` →
+- Signature: the platform's signature checks in order (`missing_header`, `malformed_header`, `timestamp_out_of_window`
+  ±300 s, `unknown_key`, `bad_signature` with `stringToSign`, `nonce_reused`) → `401 api_auth_failed`. Injections apply
+  only to correctly signed requests.
+- Then the parameter check: an unknown query parameter or body field, a missing required field, a bad `X-Client-Request-Id` →
   `400 invalid_schema {fields}`.
 - Answers: the documented example of each operation from `merchant-api.v1.json` (valid by its schema — tested), with
   the path id put in; `createInvoice`/`createPayout` keep objects by `externalId` (201, 200, 409 `*_conflict`); the
@@ -482,8 +482,9 @@ await gateway.close();
 
 ## Not in the contract
 
-Dropped from merchant-test-ui on purpose: profiles of several merchants and their CRUD, its login and session, the
-secret reveal, per-profile hook tokens (`/hooks/:token` → one `/webhooks/psp`), the raw signed-request console
-(`POST …/call`) and replay from the log, fetching the gateway OpenAPI, and the request `source` (ui/console/poll/replay).
+Left out on purpose (an earlier internal test tool had them): profiles of several merchants and their CRUD, a login
+and session, revealing the secret, per-profile hook tokens (`/hooks/:token` → one `/webhooks/psp`), a raw
+signed-request console and replay from the log, fetching the gateway OpenAPI, and request sources other than
+`ui`/`poll`.
 Dropped from the earlier `examples/api`: its own error shape `{ statusCode, error, message }`, mapping platform `401` to
 `502`, and `listAll` routes (SDK paginators; the UI pages with `page`/`limit`).

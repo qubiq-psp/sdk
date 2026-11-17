@@ -156,7 +156,7 @@ Both logs are bounded by `APP_LOG_LIMIT` entries and `APP_LOG_MAX_BYTES`.
 
 ## Retries and timeouts
 
-The client keeps the SDK defaults (gateway docs 13.10): 180 s per attempt (`APP_UPSTREAM_TIMEOUT_MS`; `payouts.create` always at least 180 s),
+The client keeps the SDK defaults (the platform's retry and timeout rules): 180 s per attempt (`APP_UPSTREAM_TIMEOUT_MS`; `payouts.create` always at least 180 s),
 up to 4 retries after 1, 2, 4, 8 s (±20 %), `Retry-After` honoured up to 30 s. Reads, `invoices.create`,
 `payouts.create`, the cancels and `webhook.setUrl/removeUrl` are retried after a connection error, a timeout or a
 retryable answer (`503`, `429`, `500 internal_error` once…); `redeliver` at most once; `sendTest` and `payouts.quote`
@@ -204,7 +204,7 @@ a request signed with the previous key and a webhook signed with the previous se
 `corepack pnpm test` (after building the SDK). The backend runs on `127.0.0.1` against a local stub of the platform (a
 real HTTP server): every contract route calls its SDK method; statuses, bodies and headers pass through; errors map as
 above; retries log one entry per attempt; the CSV statement is byte for byte; SSE; the widget link verifies with the
-HMAC of gateway docs 20.2; the receiver verifies the webhook vector of webhook-service docs 13.6 (valid, one byte more
-→ `signature_mismatch`, server time `1790684701` → `timestamp_out_of_window`, the previous secret). The shared contract
-suite and the fake gateway of `examples/contract` run against `createApp(loadConfig(env))` (in-process) or
-`node dist/main.js` (out of process) the same way.
+HMAC of the platform's widget-token rules; the receiver verifies the webhook vector of the platform documentation
+(valid, one byte more → `signature_mismatch`, server time `1790684701` → `timestamp_out_of_window`, the previous
+secret). The shared contract suite and the fake gateway of `examples/contract` run against `createApp(loadConfig(env))`
+(in-process) or `node dist/main.js` (out of process) the same way.

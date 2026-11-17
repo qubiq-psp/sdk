@@ -13,16 +13,16 @@ testnet only.
 
 These files depend on `node:crypto` only and carry the spec in their comments. Copy them into your backend:
 
-| File                                             | What it does                                                                                                                                                                                              | Spec                           |
-| ------------------------------------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------ |
-| [`src/signer.ts`](src/signer.ts)                 | The string to sign `v1\nMETHOD\nTARGET\nts\nnonce\nsha256(body)`, the HMAC, the four `X-Api-*` headers, and `resolveTarget()`: sign exactly the path and query that `fetch` sends                         | gateway docs 13.2–13.5         |
-| [`src/platform.ts`](src/platform.ts)             | One signed attempt with `fetch`: build the URL once, sign it, send the same bytes, read the answer; timeouts and connection errors are reported, redirects are not followed                               | gateway docs 13.2, 13.10       |
-| [`src/webhook-verify.ts`](src/webhook-verify.ts) | `X-Webhook-Timestamp + "." + raw body`, the ±300 s window, constant-time comparison, the previous secret during a rotation, then the body checks; returns the first failed step with the status to answer | webhook-service docs 13.6–13.7 |
-| [`src/checkout.ts`](src/checkout.ts)             | The widget link `{checkoutUrl}/#v1.<payload>.<signature>` signed offline, with the option rules of `psp.checkout.createUrl()`                                                                             | gateway docs 20.2–20.4         |
+| File                                             | What it does                                                                                                                                                                                              | Rules                                 |
+| ------------------------------------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------- |
+| [`src/signer.ts`](src/signer.ts)                 | The string to sign `v1\nMETHOD\nTARGET\nts\nnonce\nsha256(body)`, the HMAC, the four `X-Api-*` headers, and `resolveTarget()`: sign exactly the path and query that `fetch` sends                         | Request signing                       |
+| [`src/platform.ts`](src/platform.ts)             | One signed attempt with `fetch`: build the URL once, sign it, send the same bytes, read the answer; timeouts and connection errors are reported, redirects are not followed                               | Request signing, retries and timeouts |
+| [`src/webhook-verify.ts`](src/webhook-verify.ts) | `X-Webhook-Timestamp + "." + raw body`, the ±300 s window, constant-time comparison, the previous secret during a rotation, then the body checks; returns the first failed step with the status to answer | Webhook signing                       |
+| [`src/checkout.ts`](src/checkout.ts)             | The widget link `{checkoutUrl}/#v1.<payload>.<signature>` signed offline, with the option rules of `psp.checkout.createUrl()`                                                                             | The payment-widget link               |
 
-The tests check them on the published vectors: [`test/signer.test.ts`](test/signer.test.ts) (vectors 1 and 2 of 13.5
-and its negative rows), [`test/webhook-verify.test.ts`](test/webhook-verify.test.ts) (the 13.6 example and the 13.7
-table), [`test/checkout.test.ts`](test/checkout.test.ts) (the 20.4 vectors).
+The tests check them on the published vectors: [`test/signer.test.ts`](test/signer.test.ts) (the two published request
+vectors and their negative rows), [`test/webhook-verify.test.ts`](test/webhook-verify.test.ts) (the published webhook
+example and its check table), [`test/checkout.test.ts`](test/checkout.test.ts) (the published widget-token vectors).
 
 Everything else is the plumbing of the contract: [`src/passthrough.ts`](src/passthrough.ts) (the 27 routes
 `/api/<path>` → `/api/v1/<path>`, generated from the contract's `routes.json`), [`src/request-log.ts`](src/request-log.ts),
@@ -136,10 +136,10 @@ CI builds this image on every pull request (`docker build` only, nothing is push
 ## Security model of the deployment
 
 - **One merchant per deployment, from the environment.** The API URL, key and secret are never taken from a request,
-  so the backend cannot be pointed at another host (merchant-test-ui finding MTU-002). The secret only keys HMACs: it is
+  so the backend cannot be pointed at another host (no server-side request forgery). The secret only keys HMACs: it is
   never sent, logged, returned by `/api/config` or written into the request log.
 - **No login of its own.** nginx basic auth protects everything except `POST /webhooks/psp`, which the platform calls
-  and which is protected by the signature. merchant-test-ui's own login (and its bypass, MTU-001) is gone.
+  and which is protected by the signature. There is no session or login code that could be bypassed.
 - **Testnet only**: `APP_TESTNET_ONLY` is on unless set to `false`, so a forgotten variable cannot start a deployment with
   a live key.
 - **Cross-site requests are refused** ([`src/same-origin.ts`](src/same-origin.ts)): basic auth is ambient, so a
@@ -154,9 +154,9 @@ CI builds this image on every pull request (`docker build` only, nothing is push
 ## What it deliberately does not do
 
 - **No retries.** Each UI action is exactly one signed attempt, and the UI shows the platform's answer, errors included.
-  A production client retries timeouts, connection errors, `503` and `429` with a new timestamp, nonce and signature
-  per attempt and the same body bytes and `externalId` (gateway docs 13.10); `@qubiq-psp/sdk` does that by default and
-  the sdk backend shows it.
+  A production client retries timeouts, connection errors, `503` and `429` with a new timestamp, nonce and signature per
+  attempt and the same body bytes and `externalId` (the platform's retry and timeout rules); `@qubiq-psp/sdk` does that
+  by default and the sdk backend shows it.
 - **No validation of Merchant API input.** It forwards the query string and body as received so that the platform's own
   validation errors reach the UI. Before sending it only refuses what the SDK refuses (and, against CSRF, a body that is
   not `application/json` and a cross-site request): a body that is not JSON, a bad
@@ -164,5 +164,4 @@ CI builds this image on every pull request (`docker build` only, nothing is push
 - **No persistence.** The request log, the received webhooks and the receiver settings live in memory and reset on a
   restart. A real handler stores the event (and its `id` for deduplication) durably before it answers `2xx`.
 - **No calls of its own.** Nothing at start-up and no polling: the platform is called only to serve a UI request.
-- No merchant profiles, sessions, raw request console, request replay or fetching of the gateway OpenAPI (all of which
-  merchant-test-ui had).
+- No merchant profiles, sessions, raw request console, request replay or fetching of the gateway OpenAPI.

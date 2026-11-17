@@ -150,7 +150,7 @@ export const allRoutes = (): readonly Route[] => [...ROUTES.values()];
 
 /**
  * The query string as the Merchant API signs and reads it: arrays joined with `,`, commas left as they are, empty
- * values left out (gateway docs 13.2).
+ * values left out (the request-signing rules).
  */
 export function queryString(params: unknown): string {
   if (!params || typeof params !== 'object') return '';

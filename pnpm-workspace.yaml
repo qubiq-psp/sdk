@@ -14,7 +14,7 @@ allowBuilds:
   esbuild: false
   msw: false
 
-# Floors from the security audit of react-sdk (RSDK-002, the former yarn `resolutions`): esbuild and vite below these
+# Floors from an earlier security review of the React package (the former yarn `resolutions`): esbuild and vite below these
 # versions have advisories. A range is a floor, not a pin.
 overrides:
   esbuild: ^0.28.2

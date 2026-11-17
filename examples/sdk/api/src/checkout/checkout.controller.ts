@@ -1,5 +1,5 @@
 // Payment widget — psp.checkout.createUrl(): a signed link to the payment page of an invoice, built offline with the
-// API secret (gateway docs 20.2–20.3). No platform call, so no request-log entry: the page checks the invoice itself.
+// API secret (the payment-widget link format). No platform call, so no request-log entry: the page checks the invoice itself.
 import { Body, Controller, HttpCode, Inject, Param, Post } from '@nestjs/common';
 import type { components } from '@psp-examples/contract/types';
 import { PspClient } from '@qubiq-psp/sdk';
@@ -32,7 +32,7 @@ export class CheckoutController {
       throw ExampleError.invalid('branding', 'must be an object');
     }
     try {
-      // The SDK checks the options (the gateway rules of 20.3) and throws TypeError on a bad one
+      // The SDK checks the options (the platform's widget options) and throws TypeError on a bad one
       return this.psp.checkout.createUrl(invoiceId, options);
     } catch (err) {
       // «branding.logoUrl must be https» → field branding.logoUrl: the contract's `details.field` is the dotted path

@@ -1,5 +1,4 @@
-// The message protocol of the payment page (gateway docs 20.9), by hand: what the plain build uses instead of
-// @qubiq-psp/react. Ported from merchant-test-ui.
+// The message protocol of the payment page, by hand: what the plain build uses instead of @qubiq-psp/react.
 //   message = { source: 'psp-checkout', v: 1, type: 'ready' | 'status' | 'resize' | 'error', …fields of the type }
 
 /** The result of checking one window message: `null` — not a message of the payment page at all (extensions, devtools). */

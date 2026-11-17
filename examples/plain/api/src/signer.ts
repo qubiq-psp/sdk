@@ -1,4 +1,4 @@
-// Signing a request to the PSP Merchant API, scheme v1 — gateway docs 13-merchant-api.md, 13.2–13.5.
+// Signing a request to the PSP Merchant API, scheme v1, by the platform's request-signing rules.
 //
 //   string to sign  = "v1" \n METHOD \n TARGET \n X-Api-Timestamp \n X-Api-Nonce \n hex(sha256(body))
 //   X-Api-Signature = "v1=" + hex(HMAC-SHA256(key = UTF-8 bytes of the API secret, message = string to sign))
@@ -46,7 +46,7 @@ export function resolveTarget(apiUrl: string, target: string): { url: URL; targe
 /** `X-Api-Timestamp`: Unix seconds UTC, 10 digits (not milliseconds). */
 export const unixSeconds = (ms: number = Date.now()): string => String(Math.floor(ms / 1000));
 
-/** `X-Api-Nonce`: a single-use string, here a UUID v4 from the cryptographic generator (13.3). */
+/** `X-Api-Nonce`: a single-use string, here a UUID v4 from the cryptographic generator. */
 export const newNonce = (): string => randomUUID();
 
 const TIMESTAMP_RE = /^[0-9]{10}$/;

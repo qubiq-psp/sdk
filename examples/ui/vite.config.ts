@@ -4,7 +4,7 @@ import react from '@vitejs/plugin-react';
 import { defineConfig, loadEnv, type Plugin, type ProxyOptions } from 'vite';
 
 /**
- * Two builds from the same code (plan 4.11). The only difference is the payment widget component:
+ * Two builds from the same code. The only difference is the payment widget component:
  * - `sdk`   — `<PspCheckout>` of `@qubiq-psp/react`;
  * - `plain` — a plain iframe with its own `postMessage` handling, so the bundle carries no `@qubiq-psp/*` code.
  * `vite build --mode sdk|plain` picks one; `vite` (dev) takes `sdk` unless `--mode plain` or `UI_VARIANT=plain`.
@@ -50,7 +50,7 @@ export default defineConfig(({ mode }) => {
   const toBackend: ProxyOptions = {
     target: backend,
     changeOrigin: true,
-    // A platform call may take up to 180 s per attempt (gateway docs 13.10)
+    // A platform call may take up to 180 s per attempt (the platform's retry and timeout rules)
     timeout: 190_000,
     proxyTimeout: 190_000,
     configure(proxy) {

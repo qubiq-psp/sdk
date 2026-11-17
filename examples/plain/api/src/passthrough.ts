@@ -101,7 +101,7 @@ async function passthrough(
   const queryAt = rawUrl.indexOf('?');
   const query = queryAt === -1 ? '' : rawUrl.slice(queryAt);
 
-  // APP_UPSTREAM_TIMEOUT_MS, 180 s by default: long enough for createPayout (gateway docs 13.10)
+  // APP_UPSTREAM_TIMEOUT_MS, 180 s by default: long enough for createPayout (the platform's retry and timeout rules)
   const timeoutMs = config.upstreamTimeoutMs;
   const attempt = await callPlatform(
     { apiUrl: config.apiUrl, apiKey: config.apiKey, apiSecret: config.apiSecret },

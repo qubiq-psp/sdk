@@ -6,7 +6,7 @@ import { resolve } from 'node:path';
 export type Net = 'testnet' | 'mainnet';
 
 export interface Config {
-  /** Merchant API origin, e.g. `https://api.psp.qubiq.cc`. Only from the environment (audit finding MTU-002). */
+  /** Merchant API origin, e.g. `https://api.psp.qubiq.cc`. Only from the environment, never from a request. */
   apiUrl: string;
   apiKey: string;
   apiSecret: string;
@@ -134,7 +134,7 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): Config {
   // The deployed examples talk to the testnet only: the guard is on unless APP_TESTNET_ONLY=false says otherwise, so
   // an env file that forgets the variable (or leaves it empty) cannot start the example with a live key
   const testnetOnly = flag('APP_TESTNET_ONLY', true);
-  // The platform answers any request within 180 s (gateway docs 13.10); a shorter timeout turns a slow success, e.g.
+  // The platform answers any request within 180 s; a shorter timeout turns a slow success, e.g.
   // of createPayout, into an unknown outcome
   const upstreamTimeoutMs = integer('APP_UPSTREAM_TIMEOUT_MS', 180_000, 1, 600_000);
   const host = get('HOST') ?? '127.0.0.1';

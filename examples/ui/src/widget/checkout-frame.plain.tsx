@@ -1,4 +1,4 @@
-// The payment widget of the `plain` build: a plain iframe and our own postMessage handling (gateway docs 20.9).
+// The payment widget of the `plain` build: a plain iframe and our own handling of the payment page's messages.
 // Nothing here comes from @qubiq-psp/*: scripts/check-bundles.mjs and the Vite build check that.
 import { useEffect, useRef, useState } from 'react';
 import { checkMessage, frameHeight, linkOrigin } from './plain-protocol';

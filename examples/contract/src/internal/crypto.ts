@@ -1,5 +1,5 @@
 // The three signatures of the platform, written from the gateway and webhook-service docs (not from the SDK):
-// the API request (gateway 13.2), the webhook (webhook-service 13.6) and the payment-widget token (gateway 20.2).
+// the API request, the webhook and the payment-widget token, by the platform's published rules.
 import { createHash, createHmac, timingSafeEqual } from 'node:crypto';
 
 export const sha256Hex = (data: string | Uint8Array): string => createHash('sha256').update(data).digest('hex');
@@ -17,7 +17,7 @@ export interface ApiSignatureInput {
   body: string | Uint8Array;
 }
 
-/** gateway 13.2: six lines joined with `\n`, HMAC-SHA256 with the secret, `v1=` and lowercase hex. */
+/** Request signing: six lines joined with `\n`, HMAC-SHA256 with the secret, `v1=` and lowercase hex. */
 export function signApiRequest(input: ApiSignatureInput): { stringToSign: string; signature: string } {
   const stringToSign = ['v1', input.method, input.target, input.timestamp, input.nonce, sha256Hex(input.body)].join(
     '\n',
@@ -26,7 +26,7 @@ export function signApiRequest(input: ApiSignatureInput): { stringToSign: string
   return { stringToSign, signature };
 }
 
-/** webhook-service 13.6: `v1=` + hex HMAC-SHA256 of `${timestamp}.${body}`. */
+/** Webhook signing: `v1=` + hex HMAC-SHA256 of `${timestamp}.${body}`. */
 export function signWebhook(secret: string, timestamp: string | number, body: string | Uint8Array): string {
   const hmac = createHmac('sha256', secret).update(`${timestamp}.`, 'utf8');
   hmac.update(body);
@@ -55,12 +55,12 @@ const TOKEN_RE = /^v1\.([A-Za-z0-9_-]{1,4000})\.([A-Za-z0-9_-]{43})$/;
 const PAYLOAD_FIELDS = new Set(['k', 'i', 'e', 'b', 'l']);
 const BRANDING_FIELDS = new Set(['companyName', 'logoUrl', 'accentColor', 'theme', 'title']);
 
-/** gateway 20.2: `v1.<payload>.<signature>`, signature = base64url HMAC-SHA256(secret, "psp-checkout-v1." + payload). */
+/** The widget-token format: `v1.<payload>.<signature>`, signature = base64url HMAC-SHA256(secret, "psp-checkout-v1." + payload). */
 export function signCheckoutPayload(secret: string, payload: string): string {
   return createHmac('sha256', secret).update(`psp-checkout-v1.${payload}`, 'utf8').digest('base64url');
 }
 
-/** Verifies a payment-widget token with the secret and checks the payload fields of gateway 20.2–20.3. */
+/** Verifies a payment-widget token with the secret and checks the payload fields of the platform's widget-link rules. */
 export function verifyCheckoutToken(token: string, secret: string): CheckoutTokenCheck {
   const match = TOKEN_RE.exec(token);
   if (!match || token.length > 4096) return { valid: false, reason: 'format' };

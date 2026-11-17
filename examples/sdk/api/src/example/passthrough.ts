@@ -154,8 +154,8 @@ export const PspRequestOptions = createParamDecorator((_data: unknown, ctx: Exec
 
 /**
  * Every query parameter of the request, in order, for the SDK method: the backend forwards and does not validate.
- * A value with commas (`status=active,paid`) becomes a list, which the SDK joins with a literal comma again (gateway
- * docs 13.7); a repeated parameter becomes a list too.
+ * A value with commas (`status=active,paid`) becomes a list, which the SDK joins with a literal comma again (as the
+ * platform expects lists); a repeated parameter becomes a list too.
  */
 export const PassthroughQuery = createParamDecorator((_data: unknown, ctx: ExecutionContext) => {
   const url = ctx.switchToHttp().getRequest<Request>().originalUrl;

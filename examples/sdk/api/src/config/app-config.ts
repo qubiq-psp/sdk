@@ -53,7 +53,7 @@ export function nestLogLevels(level: AppLogLevel): LogLevel[] {
   return ['fatal', ...LOG_LEVELS.slice(0, LOG_LEVELS.indexOf(level) + 1)];
 }
 
-/** The same formats the SDK accepts (gateway docs 13.2). */
+/** The same formats the SDK accepts (the request-signing rules). */
 const API_KEY_RE = /^psp_pk_(test_|live_)?[0-9A-Za-z]{24}$/;
 const API_SECRET_RE = /^psp_sk_(test_|live_)?[0-9A-Za-z]{36}$/;
 const LIVE_RE = /^psp_[ps]k_live_/;

@@ -2,7 +2,7 @@ export { signApiRequest, signWebhook, verifyCheckoutToken, signCheckoutPayload, 
 export type { CheckoutPayload, CheckoutTokenCheck } from '../internal/crypto.js';
 /** The test key (made up). */
 export declare const TEST_KEY = "psp_pk_test_3Kd9Lm2Qx7Rt5Vb8Nw1Hc4Zp";
-/** The made-up secret of the gateway docs (13.5), with the testnet prefix. */
+/** The made-up secret of the platform's signing examples, with the testnet prefix. */
 export declare const TEST_SECRET = "psp_sk_test_9fT2kQ7mW4xL1vR8nB5cJ3hD6gZ0aY2eUq4N";
 /** A made-up previous secret, for webhooks signed during a rotation: the new secret of the gateway docs (14), testnet prefix. */
 export declare const TEST_PREVIOUS_SECRET = "psp_sk_test_Hq3vN8xK1mT6wR4cZ9bL2fJ7dY5gA0sEp6Wt";
@@ -126,7 +126,7 @@ export declare function startFakeGateway(options?: {
     key?: string;
     secret?: string;
 }): Promise<FakeGateway>;
-/** The body of a webhook (webhook-service 13.3), version 1, testnet chain `nile`, the documentation merchant. */
+/** The body of a webhook (the platform's webhook format), version 1, testnet chain `nile`, the documentation merchant. */
 export declare function webhookBody(type?: string, id?: string, fields?: Json): string;
 /** Signs a webhook like webhook-service and POSTs it. Unless overridden, the headers match the body. */
 export declare function sendWebhook(url: string, options?: WebhookOptions): Promise<SentWebhook>;

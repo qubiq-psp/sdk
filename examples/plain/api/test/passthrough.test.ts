@@ -92,7 +92,7 @@ describe('passthrough routes', () => {
     expect(body.errorCode).toBe('api_auth_failed');
     expect(res.headers['www-authenticate']).toBeUndefined();
     const entry = log.get(log.page(() => true, 1, 1).items[0]!.id)!;
-    // The same strings: the secret is wrong (13.4, "Analysing bad_signature")
+    // The same strings: the secret is wrong (see "Analysing bad_signature" in the platform documentation)
     expect(entry.signing?.stringToSign).toBe(body.details.stringToSign);
     expect(entry).toMatchObject({ status: 401, errorCode: 'api_auth_failed' });
   });

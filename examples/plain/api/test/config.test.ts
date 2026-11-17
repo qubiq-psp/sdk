@@ -79,7 +79,7 @@ describe('loadConfig', () => {
     ]);
   });
 
-  it('URLs: https or local http, origins only (the API URL only from the environment — MTU-002)', () => {
+  it('URLs: https or local http, origins only (the API URL only from the environment, never from a request)', () => {
     expect(problems({ ...BASE_ENV, PSP_API_URL: 'http://api.psp.qubiq.cc' })[0]).toMatch(/PSP_API_URL must be https/);
     expect(problems({ ...BASE_ENV, PSP_API_URL: 'https://api.psp.qubiq.cc/api/v1' })[0]).toMatch(/origin/);
     expect(problems({ ...BASE_ENV, PSP_API_URL: 'https://user:pw@api.psp.qubiq.cc' })[0]).toMatch(/origin/);

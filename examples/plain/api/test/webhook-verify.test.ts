@@ -3,8 +3,8 @@ import { describe, expect, it } from 'vitest';
 import { REFUSAL_STATUS, signWebhook, verifyWebhook, type WebhookHeaders } from '../src/webhook-verify.ts';
 import { OTHER_SECRET, SHOP_SECRET, WRONG_SECRET } from './helpers.ts';
 
-// webhook-service docs 13-merchant-webhooks.md, 13.6 "Example with a computed signature" and 13.7 "Checking your own
-// implementation". The bodies are the byte-for-byte files of the SDK's vectors.
+// The webhook-signing example of the platform documentation ("Example with a computed signature") and its table
+// "Checking your own implementation". The bodies are the byte-for-byte files of the SDK's vectors.
 const TEST_BODY = readFileSync(new URL('vectors/webhook-test.json', import.meta.url));
 const PAID_BODY = readFileSync(new URL('vectors/invoice-paid.json', import.meta.url));
 const TS = '1790684400';
@@ -21,7 +21,7 @@ const headers = (over: Record<string, string | undefined> = {}): WebhookHeaders 
 const check = (over: Partial<Parameters<typeof verifyWebhook>[0]> = {}) =>
   verifyWebhook({ headers: headers(), body: TEST_BODY, secret: SHOP_SECRET, now: Number(TS), ...over });
 
-describe('verifyWebhook — the vector of 13.6', () => {
+describe('verifyWebhook — the published vector', () => {
   it('the published signature is valid', () => {
     expect(TEST_BODY.length).toBe(279);
     expect(signWebhook(SHOP_SECRET, TS, TEST_BODY)).toBe(SIG);
@@ -61,7 +61,7 @@ describe('verifyWebhook — the vector of 13.6', () => {
   });
 });
 
-describe('verifyWebhook — the table of 13.7 "Checking your own implementation"', () => {
+describe('verifyWebhook — the table "Checking your own implementation"', () => {
   const reserialised = Buffer.from(JSON.stringify(JSON.parse(TEST_BODY.toString('utf8')), null, 1));
   const rows: [string, Partial<Parameters<typeof verifyWebhook>[0]>, string][] = [
     ['1: as published', {}, 'ok'],

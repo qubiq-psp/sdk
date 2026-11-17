@@ -1,4 +1,4 @@
-// Verifying a PSP webhook — webhook-service docs 13-merchant-webhooks.md, 13.6–13.7.
+// Verifying a PSP webhook by the platform's webhook-signing rules.
 //
 //   string to sign      = X-Webhook-Timestamp + "." + the raw body bytes
 //   X-Webhook-Signature = "v1=" + hex(HMAC-SHA256(key = UTF-8 bytes of the API secret, message = string to sign))

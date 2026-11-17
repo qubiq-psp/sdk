@@ -1,9 +1,9 @@
 // A fake Merchant API for the conformance suite and the backends' own tests: an in-process node:http server with all
-// 27 operations at /api/v1/*. It checks the v1 signature of every request like gateway (13.2–13.4), validates query
-// names, the body and X-Client-Request-Id (13.4 step 12), answers with the documented examples of
+// 27 operations at /api/v1/*. It checks the v1 signature of every request like the platform, validates query
+// names, the body and X-Client-Request-Id (the platform's parameter check), answers with the documented examples of
 // merchant-api.v1.json (deterministic, schema-shaped), keeps invoices and payouts by externalId (201 / 200 / 409),
 // records every request with its answer, and lets a test script the next answers of an operation. It also sends
-// signed webhooks (webhook-service 13.6) to a URL.
+// signed webhooks (the platform's webhook-signing rules) to a URL.
 import { createHash } from 'node:crypto';
 import { createServer, type IncomingMessage, type ServerResponse } from 'node:http';
 import type { AddressInfo, Socket } from 'node:net';
@@ -28,7 +28,7 @@ export type { CheckoutPayload, CheckoutTokenCheck } from '../internal/crypto.js'
 
 /** The test key (made up). */
 export const TEST_KEY = 'psp_pk_test_3Kd9Lm2Qx7Rt5Vb8Nw1Hc4Zp';
-/** The made-up secret of the gateway docs (13.5), with the testnet prefix. */
+/** The made-up secret of the platform's signing examples, with the testnet prefix. */
 export const TEST_SECRET = 'psp_sk_test_9fT2kQ7mW4xL1vR8nB5cJ3hD6gZ0aY2eUq4N';
 /** A made-up previous secret, for webhooks signed during a rotation: the new secret of the gateway docs (14), testnet prefix. */
 export const TEST_PREVIOUS_SECRET = 'psp_sk_test_Hq3vN8xK1mT6wR4cZ9bL2fJ7dY5gA0sEp6Wt';
@@ -199,7 +199,7 @@ const flat = (headers: IncomingMessage['headers']): Record<string, string> =>
     Object.entries(headers).flatMap(([k, v]) => (v === undefined ? [] : [[k, Array.isArray(v) ? v.join(', ') : v]])),
   );
 
-/** gateway 13.4 steps 5–9. Returns null when the signature is right, otherwise the `details` of the 401. */
+/** The platform's signature checks, in order. Returns null when the signature is right, otherwise the `details` of the 401. */
 function checkSignature(
   req: RecordedRequest,
   key: string,
@@ -241,7 +241,7 @@ function checkSignature(
   return { details: null, stringToSign };
 }
 
-/** gateway 13.4 step 12: parameter names, the body and `X-Client-Request-Id`. */
+/** The platform's parameter check: parameter names, the body and `X-Client-Request-Id`. */
 function validateRequest(req: RecordedRequest, operationId: string): Json | null {
   const fields: Json[] = [];
   const clientRequestId = req.headers['x-client-request-id'];
@@ -414,7 +414,7 @@ export async function startFakeGateway(options: { key?: string; secret?: string 
         response: null,
       };
       requests.push(recorded);
-      // 13.4: 1 — the route, 2 — the size, 5–9 — the signature, then the injected answer, 12 — the parameters
+      // In the platform's order: the route, the size, the signature, then the injected answer, then the parameters
       if (!found)
         return send(res, recorded, {
           status: 404,
@@ -505,7 +505,7 @@ export async function startFakeGateway(options: { key?: string; secret?: string 
 
 // ------------------------------------------------------------------------------------------------ webhooks
 
-/** The body of a webhook (webhook-service 13.3), version 1, testnet chain `nile`, the documentation merchant. */
+/** The body of a webhook (the platform's webhook format), version 1, testnet chain `nile`, the documentation merchant. */
 export function webhookBody(type = 'invoice.paid', id = fakeUuid(`webhook:${type}`), fields: Json = {}): string {
   const invoice: Json = { ...(merchantExample('getInvoice', 200) as Json), id: TEST_INVOICE_ID, status: 'paid' };
   delete invoice['payments'];

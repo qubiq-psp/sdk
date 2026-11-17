@@ -2,7 +2,7 @@
 //
 // The SDK takes a `fetch` option (PspClientOptions.fetch). We give it a wrapper of the global fetch that sees every
 // attempt exactly as sent — the URL, the signature headers, the body bytes — and the answer, and writes one entry when
-// the attempt ends. Retries of the SDK (its default policy, gateway docs 13.10) are separate attempts, so one contract
+// the attempt ends. Retries of the SDK (its default policy) are separate attempts, so one contract
 // call may produce several entries: `attempt` 1, 2, …, all with the same `callId`. `onResponse` of the SDK would give
 // the status and X-Request-Id only, not the headers or the bodies.
 import { randomUUID } from 'node:crypto';
@@ -115,7 +115,7 @@ export class RequestLogService {
     if (!entry) return;
     entry.signing = {
       stringToSign: error.localStringToSign,
-      // The sixth line of the string to sign (gateway docs 13.2)
+      // The sixth line of the string to sign (the request-signing rules)
       bodySha256: error.localStringToSign.split('\n')[5] ?? null,
     };
   }

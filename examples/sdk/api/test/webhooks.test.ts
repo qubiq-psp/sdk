@@ -1,8 +1,9 @@
-// The receiver `POST /webhooks/psp` with the webhook vector of webhook-service docs 13.6, its log and settings.
+// The receiver `POST /webhooks/psp` with the webhook vector of the platform documentation, its log and settings.
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import { startApp, testEnv, type TestApp } from './support/app';
 
-// The made-up secret of the docs (13.6), published on purpose. An old-format (testnet) secret; any testnet key fits.
+// The made-up secret of the platform's webhook example, published on purpose. An old-format (testnet) secret; any
+// testnet key fits.
 const DOCS_SECRET = 'psp_sk_9fT2kQ7mW4xL1vR8nB5cJ3hD6gZ0aY2eUq4N';
 const DOCS_KEY = 'psp_pk_3Kd9Lm2Qx7Rt5Vb8Nw1Hc4Zp';
 const OTHER_SECRET = 'psp_sk_test_Zz98Yy76Xx54Ww32Vv10Uu98Tt76Ss54Rr32';
@@ -72,7 +73,7 @@ async function received(query = ''): Promise<{ items: Received[]; total: number 
   return (await (await fetch(`${app.url}/api/received-webhooks${query}`)).json()) as never;
 }
 
-describe('verification by the docs vector (webhook-service 13.6)', () => {
+describe('verification by the published webhook vector', () => {
   it('accepts the valid webhook, then answers a repeat as a duplicate', async () => {
     expect(await deliver(app)).toEqual({ status: 200, json: { received: true, duplicate: false } });
     expect(await deliver(app)).toEqual({ status: 200, json: { received: true, duplicate: true } });
