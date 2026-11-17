@@ -3,6 +3,7 @@ packages:
   - packages/*
   - examples/contract
   - examples/plain/api
+  - examples/sdk/api
 
 # Install scripts of dependencies do not run unless allowed here. esbuild's only checks its binary, which comes with
 # its optionalDependencies; core-js's (via @redocly/cli of examples/contract) only prints a banner.

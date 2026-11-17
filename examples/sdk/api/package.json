@@ -1,0 +1,40 @@
+{
+  "name": "@psp-examples/sdk-api",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Example merchant backend on @qubiq-psp/sdk (NestJS): implements the examples contract for the shared UI",
+  "license": "MIT",
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "dev": "tsx watch src/main.ts",
+    "start": "node dist/main.js",
+    "build": "tsc -p tsconfig.build.json",
+    "typecheck": "tsc",
+    "lint": "eslint . --max-warnings 0",
+    "format:check": "prettier --check .",
+    "test": "vitest run",
+    "ci": "pnpm run typecheck && pnpm run lint && pnpm run format:check && pnpm run test && pnpm run build"
+  },
+  "dependencies": {
+    "@nestjs/common": "^11.1.6",
+    "@nestjs/core": "^11.1.6",
+    "@nestjs/platform-express": "^11.1.6",
+    "@psp-examples/contract": "workspace:*",
+    "@qubiq-psp/sdk": "workspace:*",
+    "express": "^5.1.0",
+    "reflect-metadata": "^0.2.2",
+    "rxjs": "^7.8.2"
+  },
+  "devDependencies": {
+    "@types/express": "^5.0.3",
+    "@types/node": "^22",
+    "eslint": "^9.39",
+    "prettier": "^3.6",
+    "tsx": "^4.20",
+    "typescript": "~5.9.3",
+    "typescript-eslint": "^8.46",
+    "vitest": "^3.2"
+  }
+}
