@@ -3,7 +3,7 @@
 import { createHash, createHmac } from 'node:crypto';
 import { createServer, type IncomingMessage, type ServerResponse } from 'node:http';
 import type { AddressInfo } from 'node:net';
-import { buildApp, type AppOptions } from '../src/app.ts';
+import { createApp, type AppOptions } from '../src/app.ts';
 import { loadConfig, type Config } from '../src/config.ts';
 
 // The made-up `shop-example` key and secret of gateway docs 13.5 (published on purpose)
@@ -26,9 +26,7 @@ export function testConfig(env: Record<string, string> = {}): Config {
 }
 
 export async function makeApp(env: Record<string, string> = {}, options: Omit<AppOptions, 'config'> = {}) {
-  const config = testConfig(env);
-  const built = await buildApp({ config, logger: false, ...options });
-  return { ...built, config };
+  return createApp({ ...BASE_ENV, ...env }, { logger: false, ...options });
 }
 
 export interface StubRequest {

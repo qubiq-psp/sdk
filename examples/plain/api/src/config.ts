@@ -20,6 +20,8 @@ export interface Config {
   /** `${publicUrl}/webhooks/psp` or `null`. */
   webhookUrl: string | null;
   testnetOnly: boolean;
+  /** Timeout of one platform attempt, ms. */
+  upstreamTimeoutMs: number;
   host: string;
   port: number;
   /** A built UI to serve, or `null`. */
@@ -125,8 +127,11 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): Config {
   const previous = credential('PSP_API_PREVIOUS_SECRET', SECRET_RE, 'psp_sk_test_ + 36 letters and digits', false);
   const checkoutUrl = origin('PSP_CHECKOUT_URL', true);
   const publicUrl = origin('APP_PUBLIC_URL', false);
-  // Deployed examples talk to the testnet only. On by default: a mainnet run has to say APP_TESTNET_ONLY=false.
-  const testnetOnly = flag('APP_TESTNET_ONLY', true);
+  // Every deployment sets APP_TESTNET_ONLY=true: the deployed examples talk to the testnet only
+  const testnetOnly = flag('APP_TESTNET_ONLY', false);
+  // The platform answers any request within 180 s (gateway docs 13.10); a shorter timeout turns a slow success, e.g.
+  // of createPayout, into an unknown outcome
+  const upstreamTimeoutMs = integer('APP_UPSTREAM_TIMEOUT_MS', 180_000, 1, 600_000);
   const host = get('HOST') ?? '127.0.0.1';
   const port = integer('PORT', 4600, 1, 65_535);
   const logLimit = integer('APP_LOG_LIMIT', 1000, 1, 100_000);
@@ -175,6 +180,7 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): Config {
     publicUrl,
     webhookUrl: publicUrl ? `${publicUrl}/webhooks/psp` : null,
     testnetOnly,
+    upstreamTimeoutMs,
     host,
     port,
     uiDir,

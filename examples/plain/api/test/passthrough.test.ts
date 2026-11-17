@@ -18,8 +18,8 @@ beforeEach(() => {
 });
 
 const INVOICE = '97da92f5-45c0-411b-9ed5-6793b396cd5f';
-const setup = (env: Record<string, string> = {}, timeouts = { createPayout: 1500, other: 1000 }) =>
-  makeApp({ PSP_API_URL: stub.url, ...env }, { timeouts });
+const setup = (env: Record<string, string> = {}) =>
+  makeApp({ PSP_API_URL: stub.url, APP_UPSTREAM_TIMEOUT_MS: '1000', ...env });
 
 describe('passthrough routes', () => {
   it('every one of the 27 routes reaches its Merchant API path, signed', async () => {
@@ -173,7 +173,7 @@ describe('backend-own errors (example_*)', () => {
     }
   });
 
-  it('504 example_upstream_timeout; 180 s is the timeout of createPayout only', async () => {
+  it('504 example_upstream_timeout after APP_UPSTREAM_TIMEOUT_MS', async () => {
     const { app, log } = await setup();
     stub.answer(() => ({ status: 200, body: '{}', delayMs: 1200 }));
     const slow = await app.inject({ method: 'GET', url: '/api/account' });
@@ -184,8 +184,6 @@ describe('backend-own errors (example_*)', () => {
       details: { timeoutMs: 1000 },
     });
     expect(slow.headers['x-example-call-id']).toBeDefined();
-    // createPayout waits longer (1500 ms here, 180 s by default)
-    expect((await app.inject({ method: 'POST', url: '/api/payouts', payload: {} })).statusCode).toBe(200);
     const entry = log.page((e) => e.operationId === 'getAccount', 1, 1).items[0]!;
     expect(entry).toMatchObject({ status: null, transportError: { code: 'timeout' } });
   });

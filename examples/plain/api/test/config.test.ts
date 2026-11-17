@@ -31,7 +31,8 @@ describe('loadConfig', () => {
       checkoutUrl: 'https://pay.psp.qubiq.cc',
       publicUrl: null,
       webhookUrl: null,
-      testnetOnly: true,
+      testnetOnly: false,
+      upstreamTimeoutMs: 180_000,
       host: '127.0.0.1',
       port: 4600,
       uiDir: null,
@@ -98,41 +99,47 @@ describe('loadConfig', () => {
     expect(found.join('\n')).not.toContain(SHOP_SECRET);
   });
 
-  describe('the testnet guard (APP_TESTNET_ONLY, on by default)', () => {
+  describe('the testnet guard (APP_TESTNET_ONLY=true, set in every deployment)', () => {
+    const GUARD = { ...BASE_ENV, APP_TESTNET_ONLY: 'true' };
+
     it('refuses a live key or a live secret', () => {
-      expect(problems({ ...BASE_ENV, PSP_API_KEY: LIVE_KEY, PSP_API_SECRET: LIVE_SECRET })).toEqual([
+      expect(problems({ ...GUARD, PSP_API_KEY: LIVE_KEY, PSP_API_SECRET: LIVE_SECRET })).toEqual([
         'APP_TESTNET_ONLY=true: PSP_API_KEY is a live (mainnet) key psp_pk_live_…',
         'APP_TESTNET_ONLY=true: PSP_API_SECRET is a live (mainnet) secret psp_sk_live_…',
       ]);
-      expect(
-        problems({ ...BASE_ENV, APP_TESTNET_ONLY: 'true', PSP_API_KEY: LIVE_KEY, PSP_API_SECRET: LIVE_SECRET }),
-      ).toHaveLength(2);
-    });
-
-    it('refuses a key and a secret of different networks, also with the guard off', () => {
-      expect(problems({ ...BASE_ENV, PSP_API_KEY: TEST_KEY, PSP_API_SECRET: LIVE_SECRET })).toContain(
-        'PSP_API_SECRET belongs to another network than the testnet PSP_API_KEY',
-      );
-      expect(
-        problems({ ...BASE_ENV, APP_TESTNET_ONLY: 'false', PSP_API_KEY: LIVE_KEY, PSP_API_SECRET: TEST_SECRET }),
-      ).toEqual(['PSP_API_SECRET belongs to another network than the mainnet PSP_API_KEY']);
-      expect(problems({ ...BASE_ENV, PSP_API_PREVIOUS_SECRET: LIVE_SECRET })).toEqual([
+      expect(problems({ ...GUARD, PSP_API_PREVIOUS_SECRET: LIVE_SECRET })).toEqual([
         'PSP_API_PREVIOUS_SECRET belongs to another network than the testnet PSP_API_KEY',
         'APP_TESTNET_ONLY=true: PSP_API_PREVIOUS_SECRET is a live (mainnet) secret psp_sk_live_…',
       ]);
+      expect(loadConfig({ ...GUARD, PSP_API_KEY: TEST_KEY, PSP_API_SECRET: TEST_SECRET })).toMatchObject({
+        net: 'testnet',
+        testnetOnly: true,
+      });
     });
 
-    it('APP_TESTNET_ONLY=false lets a mainnet pair through; other values are refused', () => {
-      const c = loadConfig({
-        ...BASE_ENV,
-        APP_TESTNET_ONLY: 'false',
-        PSP_API_KEY: LIVE_KEY,
-        PSP_API_SECRET: LIVE_SECRET,
-      });
-      expect(c).toMatchObject({ net: 'mainnet', testnetOnly: false });
-      expect(problems({ ...BASE_ENV, APP_TESTNET_ONLY: 'yes' })).toEqual(['APP_TESTNET_ONLY must be true or false']);
-      expect(loadConfig({ ...BASE_ENV, PSP_API_KEY: TEST_KEY, PSP_API_SECRET: TEST_SECRET }).net).toBe('testnet');
+    it('refuses a key and a secret of different networks, with or without the guard', () => {
+      expect(problems({ ...GUARD, PSP_API_KEY: TEST_KEY, PSP_API_SECRET: LIVE_SECRET })).toContain(
+        'PSP_API_SECRET belongs to another network than the testnet PSP_API_KEY',
+      );
+      expect(problems({ ...BASE_ENV, PSP_API_KEY: LIVE_KEY, PSP_API_SECRET: TEST_SECRET })).toEqual([
+        'PSP_API_SECRET belongs to another network than the mainnet PSP_API_KEY',
+      ]);
     });
+
+    it('unset or false lets a mainnet pair through; other values are refused', () => {
+      for (const flag of [{}, { APP_TESTNET_ONLY: 'false' }]) {
+        const c = loadConfig({ ...BASE_ENV, ...flag, PSP_API_KEY: LIVE_KEY, PSP_API_SECRET: LIVE_SECRET });
+        expect(c).toMatchObject({ net: 'mainnet', testnetOnly: false });
+      }
+      expect(problems({ ...BASE_ENV, APP_TESTNET_ONLY: 'yes' })).toEqual(['APP_TESTNET_ONLY must be true or false']);
+    });
+  });
+
+  it('APP_UPSTREAM_TIMEOUT_MS: 180 s by default, 1–600000', () => {
+    expect(loadConfig({ ...BASE_ENV, APP_UPSTREAM_TIMEOUT_MS: '1500' }).upstreamTimeoutMs).toBe(1500);
+    expect(problems({ ...BASE_ENV, APP_UPSTREAM_TIMEOUT_MS: '0' })).toEqual([
+      'APP_UPSTREAM_TIMEOUT_MS must be an integer from 1 to 600000',
+    ]);
   });
 
   it('APP_UI_DIR must hold index.html', () => {

@@ -1,17 +1,12 @@
 // Entry point: check the environment, start the server, stop cleanly on SIGTERM.
-import { buildApp } from './app.ts';
-import { ConfigError, loadConfig, type Config } from './config.ts';
+import { createApp } from './app.ts';
+import { ConfigError } from './config.ts';
 
-let config: Config;
-try {
-  config = loadConfig();
-} catch (err) {
+const { app, config } = await createApp(process.env).catch((err: unknown) => {
   if (!(err instanceof ConfigError)) throw err;
   process.stderr.write(`${err.message}\nSee .env.example and the README, "Environment".\n`);
   process.exit(1);
-}
-
-const { app } = await buildApp({ config });
+});
 
 let closing = false;
 for (const signal of ['SIGTERM', 'SIGINT'] as const) {
@@ -33,6 +28,7 @@ app.log.info(
     checkoutUrl: config.checkoutUrl,
     webhookUrl: config.webhookUrl,
     testnetOnly: config.testnetOnly,
+    upstreamTimeoutMs: config.upstreamTimeoutMs,
     ui: config.uiDir !== null,
   },
   'plain example backend ready',

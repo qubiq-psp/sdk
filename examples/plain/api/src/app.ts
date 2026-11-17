@@ -3,9 +3,9 @@ import fastifyStatic from '@fastify/static';
 import Fastify, { type FastifyInstance } from 'fastify';
 import { EventBus } from './bus.ts';
 import { CheckoutInputError, createCheckoutLink } from './checkout.ts';
-import type { Config } from './config.ts';
+import { loadConfig, type Config } from './config.ts';
 import { invalidRequest, notFound, registerErrorHandler } from './errors.ts';
-import { DEFAULT_TIMEOUTS, registerPassthrough, type Timeouts } from './passthrough.ts';
+import { registerPassthrough } from './passthrough.ts';
 import { Receiver, registerReceiver } from './receiver.ts';
 import { RequestLog, registerRequestLogRoutes } from './request-log.ts';
 import { registerStream } from './stream.ts';
@@ -33,15 +33,9 @@ export interface AppOptions {
   logger?: boolean | { write(line: string): void };
   /** `fetch` for the platform calls — tests pass a stub. */
   fetch?: typeof fetch;
-  timeouts?: Timeouts;
 }
 
-export async function buildApp({
-  config,
-  logger = true,
-  fetch: fetchImpl = fetch,
-  timeouts = DEFAULT_TIMEOUTS,
-}: AppOptions) {
+export async function buildApp({ config, logger = true, fetch: fetchImpl = fetch }: AppOptions) {
   const app: FastifyInstance = Fastify({
     logger: logger === false ? false : { level: config.logLevel, ...(logger === true ? {} : { stream: logger }) },
     // nginx runs on the same host: the client IP is taken from X-Forwarded-For of loopback only
@@ -90,7 +84,7 @@ export async function buildApp({
   registerRequestLogRoutes(app, { log });
   registerStream(app, { bus });
   await registerReceiver(app, { config, receiver, bus });
-  await registerPassthrough(app, { config, log, timeouts, fetch: fetchImpl });
+  await registerPassthrough(app, { config, log, fetch: fetchImpl });
 
   // The built UI, if any: its files, and index.html for every other GET outside /api and /webhooks (SPA routes)
   const headers = uiHeaders(config);
@@ -118,4 +112,14 @@ export async function buildApp({
   });
 
   return { app, bus, log, receiver };
+}
+
+/**
+ * Builds the app from an environment object — `process.env` in main.ts, a test's own object elsewhere, so several
+ * instances can run in one process. Throws `ConfigError` on a wrong environment (e.g. a live key with
+ * APP_TESTNET_ONLY=true).
+ */
+export async function createApp(env: NodeJS.ProcessEnv, options: Omit<AppOptions, 'config'> = {}) {
+  const config = loadConfig(env);
+  return { ...(await buildApp({ config, ...options })), config };
 }

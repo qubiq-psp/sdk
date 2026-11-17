@@ -24,15 +24,6 @@ export const PASSTHROUGH_ROUTES: PassthroughRoute[] = routes
   .filter((r) => !r.extra)
   .map((r) => ({ operationId: r.operationId, method: r.method as Method, path: r.path }));
 
-/** Per-attempt timeouts. The platform answers any request within 180 s (gateway docs 13.10). */
-export interface Timeouts {
-  /** `createPayout`: 180 s — a shorter one turns a payout still being made into an unknown outcome. */
-  createPayout: number;
-  /** Every other operation. */
-  other: number;
-}
-export const DEFAULT_TIMEOUTS: Timeouts = { createPayout: 180_000, other: 60_000 };
-
 /** Headers of the platform's answer that reach the UI (besides `Content-Type`). */
 const PASSED_HEADERS = ['X-Request-Id', 'X-Client-Request-Id', 'X-Api-Key-Deprecated', 'Retry-After'];
 const CLIENT_REQUEST_ID_RE = /^[\x21-\x7E]{1,128}$/;
@@ -43,7 +34,6 @@ const BODY_LIMIT = 1024 * 1024;
 export interface PassthroughDeps {
   config: Config;
   log: RequestLog;
-  timeouts: Timeouts;
   fetch: typeof fetch;
 }
 
@@ -77,7 +67,7 @@ async function passthrough(
   route: PassthroughRoute,
   req: FastifyRequest,
   reply: FastifyReply,
-  { config, log, timeouts, fetch: fetchImpl }: PassthroughDeps,
+  { config, log, fetch: fetchImpl }: PassthroughDeps,
 ): Promise<FastifyReply> {
   const callId = callIds.get(req) ?? randomUUID();
 
@@ -107,7 +97,8 @@ async function passthrough(
   const queryAt = rawUrl.indexOf('?');
   const query = queryAt === -1 ? '' : rawUrl.slice(queryAt);
 
-  const timeoutMs = route.operationId === 'createPayout' ? timeouts.createPayout : timeouts.other;
+  // APP_UPSTREAM_TIMEOUT_MS, 180 s by default: long enough for createPayout (gateway docs 13.10)
+  const timeoutMs = config.upstreamTimeoutMs;
   const attempt = await callPlatform(
     { apiUrl: config.apiUrl, apiKey: config.apiKey, apiSecret: config.apiSecret },
     {
