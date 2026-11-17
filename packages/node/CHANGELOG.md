@@ -2,9 +2,7 @@
 
 All notable changes to `@qubiq-psp/sdk` are documented here. The project follows [Semantic Versioning](https://semver.org/).
 
-## 0.2.2 — 2026-11-17
-
-No code changes. The source moved to the repository [qubiq-psp/sdk](https://github.com/qubiq-psp/sdk) (`packages/node`), together with the other package and the examples; the former repository `qubiq-psp/node-sdk` becomes a read-only archive. `repository`, `homepage` and `bugs` in `package.json` point there, so npm provenance matches the repository the package is built from.
+## Unreleased
 
 ### Added
 
@@ -18,6 +16,10 @@ No code changes. The source moved to the repository [qubiq-psp/sdk](https://gith
 - Public types of the new objects (`MerchantBalances`, `Operation`, `Statement`, `Deposit`, `Payout`, `PayoutQuote`, `Network`, `Tariff`, …), checked against the OpenAPI schemas.
 - Typed `details` of the payout error codes: `limit_exceeded`, `invalid_address`, `own_address`, `insufficient_balance`, `network_fee_too_high`, `payout_conflict`, `network_service_rejected`, `rate_unavailable`.
 - `examples/create-payout.ts`.
+
+## 0.2.2 — 2026-11-17
+
+No code changes. The source moved to the repository [qubiq-psp/sdk](https://github.com/qubiq-psp/sdk) (`packages/node`), together with the other package and the examples; the former repository `qubiq-psp/node-sdk` becomes a read-only archive. `repository`, `homepage` and `bugs` in `package.json` point there, so npm provenance matches the repository the package is built from.
 
 ## 0.2.1 — 2026-11-10
 
