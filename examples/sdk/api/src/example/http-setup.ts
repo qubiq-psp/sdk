@@ -51,7 +51,7 @@ export function configureHttp(app: NestExpressApplication, config: AppConfig): v
     },
   );
 
-  if (config.uiDir !== null) serveUi(app, config.uiDir);
+  if (config.uiDir !== null) serveUi(app, config.uiDir, uiHeaders(config.psp.checkoutUrl));
 }
 
 /**
@@ -72,10 +72,33 @@ function refuseUnreadable(parser: RequestHandler, limitBytes: number): RequestHa
   };
 }
 
+/**
+ * Headers of the UI files, the same as the plain backend's: scripts only from this origin, frames only of the payment
+ * page (`PSP_CHECKOUT_URL`, where `<PspCheckout>` points its iframe), never framed itself (clickjacking: basic auth is
+ * ambient), no MIME sniffing, no Referer.
+ */
+export function uiHeaders(checkoutUrl: string): Record<string, string> {
+  const checkoutOrigin = new URL(checkoutUrl).origin;
+  return {
+    'Content-Security-Policy':
+      "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; " +
+      `font-src 'self'; connect-src 'self'; frame-src ${checkoutOrigin}; object-src 'none'; base-uri 'none'; ` +
+      "form-action 'self'; frame-ancestors 'none'",
+    'X-Content-Type-Options': 'nosniff',
+    'Referrer-Policy': 'no-referrer',
+    'X-Frame-Options': 'DENY',
+  };
+}
+
 /** The built UI with an SPA fallback: a GET outside /api and /webhooks that is not a file gets index.html. */
-function serveUi(app: NestExpressApplication, uiDir: string): void {
+function serveUi(app: NestExpressApplication, uiDir: string, headers: Record<string, string>): void {
   const isBackend = (path: string): boolean => /^\/(api|webhooks)(\/|$)/.test(path);
-  const files = express.static(uiDir, { index: 'index.html' });
+  const files = express.static(uiDir, {
+    index: 'index.html',
+    setHeaders: (res) => {
+      for (const [name, value] of Object.entries(headers)) res.setHeader(name, value);
+    },
+  });
   app.use((req: Request, res: Response, next: NextFunction) => {
     if (isBackend(req.path)) {
       next();
@@ -88,6 +111,6 @@ function serveUi(app: NestExpressApplication, uiDir: string): void {
       next();
       return;
     }
-    res.sendFile('index.html', { root: uiDir });
+    res.set(headers).sendFile('index.html', { root: uiDir });
   });
 }

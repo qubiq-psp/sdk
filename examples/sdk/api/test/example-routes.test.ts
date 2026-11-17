@@ -4,6 +4,7 @@ import { mkdtempSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
+import { uiHeaders } from '../src/example/http-setup';
 import { API_KEY, API_SECRET, CHECKOUT_URL, startApp, testEnv, type TestApp } from './support/app';
 import { PlatformStub } from './support/platform-stub';
 
@@ -165,6 +166,12 @@ describe('POST /api/invoices/{invoiceId}/checkout-link', () => {
 });
 
 describe('APP_UI_DIR', () => {
+  it('frame-src is the origin of PSP_CHECKOUT_URL', () => {
+    expect(uiHeaders('https://pay.example.com/checkout/')['Content-Security-Policy']).toContain(
+      'frame-src https://pay.example.com;',
+    );
+  });
+
   it('serves the UI with an SPA fallback, and the API next to it', async () => {
     const dir = mkdtempSync(join(tmpdir(), 'sdk-api-ui-'));
     writeFileSync(join(dir, 'index.html'), '<!doctype html><title>ui</title>');
@@ -174,6 +181,18 @@ describe('APP_UI_DIR', () => {
       expect(await (await fetch(`${withUi.url}/`)).text()).toContain('<title>ui</title>');
       expect(await (await fetch(`${withUi.url}/invoices/123`)).text()).toContain('<title>ui</title>');
       expect(await (await fetch(`${withUi.url}/app.js`)).text()).toBe('console.log(1)');
+      // The same page headers as the plain backend: CSP with the payment page as the only frame, never framed
+      for (const path of ['/', '/index.html', '/invoices/123', '/app.js']) {
+        const res = await fetch(`${withUi.url}${path}`);
+        const csp = (res.headers.get('content-security-policy') ?? '').split('; ');
+        expect(csp, path).toContain(`frame-src ${CHECKOUT_URL}`);
+        expect(csp, path).toContain("frame-ancestors 'none'");
+        expect(csp, path).toContain("script-src 'self'");
+        expect(csp, path).toContain("default-src 'self'");
+        expect(res.headers.get('x-frame-options'), path).toBe('DENY');
+        expect(res.headers.get('x-content-type-options'), path).toBe('nosniff');
+        expect(res.headers.get('referrer-policy'), path).toBe('no-referrer');
+      }
       const api = await fetch(`${withUi.url}/api/unknown`);
       expect(api.status).toBe(404);
       expect(await api.json()).toMatchObject({ errorCode: 'example_not_found' });
