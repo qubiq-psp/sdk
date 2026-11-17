@@ -2,6 +2,21 @@
 
 All notable changes to `@qubiq-psp/sdk` are documented here. The project follows [Semantic Versioning](https://semver.org/).
 
+## Unreleased
+
+To be released as **0.4.0**: the narrowed unions below can stop TypeScript code from compiling, and while the SDK is `0.x` a minor version is where a change that can break a build goes.
+
+### Breaking
+
+- `OperationFlow` is `'in' | 'out' | 'hold' | 'adjust'`: `custody` and `pnl` are gone. They are flows of the company's own accounts, and the API never returned them to a merchant.
+- `OperationType` — the type of `Operation.type` and of the `type` filter of `psp.operations.list` / `listAll` — has the 24 types that move an account of a merchant. The 13 company-only types are gone: `deposit_unallocated`, `deposit_small`, `unallocated_income`, `sweep`, `sweep_unrecognized`, `network_fee`, `wallet_transfer`, `owner_funding`, `owner_withdrawal`, `internetwork_settle`, `issuer_freeze`, `custody_correction`, `writeoff`. An operation of a merchant never had one of them, so the filter with them found nothing; the platform now answers `400 invalid_schema` to such a filter.
+
+Nothing changes at run time for code that worked: no response the SDK reads had these values. Why it is listed as breaking: TypeScript rejects code that names a removed value — a filter such as `list({ type: 'sweep' })` (it would get a `400` now), or a comparison or `case` with `'custody'`, `'pnl'` or a removed type (TS2367 "This comparison appears to be unintentional", or TS2678 in a `switch`). Migration: delete those branches and filter values; they could never match.
+
+### Changed
+
+- `api/openapi.v1.json` and `src/generated/schema.d.ts` are synced with the current public OpenAPI of the platform: the CSV statement (`text/csv`) is declared as a string (RFC 4180, CRLF line ends, UTF-8 without a BOM) instead of the `Statement` object — `getStatement({ …, format: 'csv' })` already returned a string, so its type does not change; the descriptions of `asset` of invoices and payouts and the examples are updated.
+
 ## 0.3.0 — 2026-11-17
 
 ### Added

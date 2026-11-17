@@ -1554,7 +1554,7 @@
           "asset": {
             "type": "string",
             "pattern": "^[A-Z0-9]{2,10}$",
-            "description": "Asset of the invoice: USDT or TRX. A payment in another asset does not close it",
+            "description": "Asset of the invoice, one of the assets of its network. A payment in another asset does not close it",
             "example": "USDT"
           },
           "currency": {
@@ -2068,7 +2068,7 @@
           "asset": {
             "type": "string",
             "pattern": "^[A-Z0-9]{2,10}$",
-            "description": "Asset of the invoice: USDT or TRX. A payment in another asset does not close it",
+            "description": "Asset of the invoice, one of the assets of its network. A payment in another asset does not close it",
             "example": "USDT"
           },
           "currency": {
@@ -2616,21 +2616,15 @@
           },
           "type": {
             "type": "string",
-            "description": "Type of the operation",
+            "description": "Type of the operation: only the types that move an account of the merchant (13.9)",
             "enum": [
               "deposit_credit",
               "deposit_hold",
-              "deposit_unallocated",
-              "deposit_small",
               "aml_release",
               "aml_dirty_assign",
               "aml_dirty_release",
               "aml_dirty_withdrawal",
               "unallocated_assign",
-              "unallocated_income",
-              "sweep",
-              "sweep_unrecognized",
-              "network_fee",
               "payout_hold",
               "payout_release",
               "payout_capture",
@@ -2642,31 +2636,22 @@
               "cross_network_payout_capture",
               "cross_network_payout_release",
               "cross_network_payout_reversal",
-              "wallet_transfer",
-              "owner_funding",
-              "owner_withdrawal",
-              "internetwork_settle",
               "merchant_credit",
               "merchant_debit",
               "merchant_freeze",
               "merchant_unfreeze",
               "fee_refund",
-              "issuer_freeze",
-              "custody_correction",
-              "writeoff",
               "reversal"
             ],
             "example": "deposit_credit"
           },
           "flow": {
             "type": "string",
-            "description": "in, out, hold, adjust; pnl and custody are internal",
+            "description": "in — incoming, out — a withdrawal or its network fee, hold — a hold or a freeze, adjust — an adjustment",
             "enum": [
               "in",
               "out",
               "hold",
-              "custody",
-              "pnl",
               "adjust"
             ],
             "example": "in"
@@ -3364,7 +3349,7 @@
             "description": "Reason of the rejection or the cancellation",
             "maxLength": 500,
             "nullable": true,
-            "example": "INC-0415: мерчант заблокирован в gateway"
+            "example": "INC-0412: мерчант заблокирован в gateway до проверки"
           },
           "createdAt": {
             "type": "string",
@@ -3835,7 +3820,7 @@
             "description": "Name of the plan in force",
             "minLength": 1,
             "maxLength": 128,
-            "example": "Стандарт"
+            "example": "Standard"
           },
           "rules": {
             "type": "array",
@@ -4272,7 +4257,7 @@
                   "asset": {
                     "type": "string",
                     "pattern": "^[A-Z0-9]{2,10}$",
-                    "description": "Asset: USDT or TRX"
+                    "description": "Asset of the invoice: an asset of the network with invoicesEnabled in listNetworks (GET /api/v1/networks of the merchant API), for example USDT in tron"
                   },
                   "amount": {
                     "type": "string",
@@ -5252,7 +5237,7 @@
                   "paidAt": "2026-09-29T11:55:33.000Z",
                   "closedAt": "2026-09-29T11:56:41.120Z",
                   "cancelledAt": null,
-                  "description": "Заказ 58213",
+                  "description": "Order 58213",
                   "metadata": {
                     "cartId": "c-99102"
                   },
@@ -5666,7 +5651,7 @@
                         "invoice": {
                           "id": "32ddde90-754b-4ef9-b5f6-2fd75726af14",
                           "status": "active",
-                          "...": "снимок инвойса"
+                          "...": "invoice snapshot"
                         }
                       }
                     },
@@ -5678,10 +5663,10 @@
                       "occurredAt": "2026-09-29T11:42:16.000Z",
                       "payload": {
                         "invoice": {
-                          "...": "снимок инвойса"
+                          "...": "invoice snapshot"
                         },
                         "payment": {
-                          "...": "платёж"
+                          "...": "payment"
                         }
                       }
                     },
@@ -5693,10 +5678,10 @@
                       "occurredAt": "2026-09-29T11:56:41.120Z",
                       "payload": {
                         "invoice": {
-                          "...": "снимок инвойса"
+                          "...": "invoice snapshot"
                         },
                         "payment": {
-                          "...": "платёж"
+                          "...": "payment"
                         }
                       }
                     }
@@ -6779,26 +6764,19 @@
             "name": "type",
             "required": false,
             "in": "query",
-            "description": "Types through a comma",
+            "description": "Types through a comma: only the types that move an account of the merchant",
             "schema": {
               "type": "array",
               "items": {
                 "type": "string",
-                "description": "Type of the operation",
                 "enum": [
                   "deposit_credit",
                   "deposit_hold",
-                  "deposit_unallocated",
-                  "deposit_small",
                   "aml_release",
                   "aml_dirty_assign",
                   "aml_dirty_release",
                   "aml_dirty_withdrawal",
                   "unallocated_assign",
-                  "unallocated_income",
-                  "sweep",
-                  "sweep_unrecognized",
-                  "network_fee",
                   "payout_hold",
                   "payout_release",
                   "payout_capture",
@@ -6810,20 +6788,14 @@
                   "cross_network_payout_capture",
                   "cross_network_payout_release",
                   "cross_network_payout_reversal",
-                  "wallet_transfer",
-                  "owner_funding",
-                  "owner_withdrawal",
-                  "internetwork_settle",
                   "merchant_credit",
                   "merchant_debit",
                   "merchant_freeze",
                   "merchant_unfreeze",
                   "fee_refund",
-                  "issuer_freeze",
-                  "custody_correction",
-                  "writeoff",
                   "reversal"
-                ]
+                ],
+                "description": "Type of the operation that can move an account of the merchant"
               }
             },
             "example": [
@@ -7699,9 +7671,10 @@
               },
               "text/csv": {
                 "schema": {
-                  "$ref": "#/components/schemas/V1Statement"
+                  "type": "string",
+                  "description": "With format=csv: the rows of the JSON statement as CSV text (RFC 4180, CRLF line ends, UTF-8 without a BOM): a header row network,asset,decimals,opening,inGross,inFee,inNet,outGross,outFee,outNetworkFee,holdsChange,adjustments,closing, then one row per (network, asset) with the values of the fields of the same names in V1Statement.items; the amounts are decimal strings in units of the asset."
                 },
-                "example": "network,asset,decimals,opening,inGross,inFee,inNet,outGross,outFee,outNetworkFee,holdsChange,adjustments,closing\ntron,USDT,6,1050.5,48250,482.5,47767.5,30000,170,10.44,1508.5,0,18637.56\n"
+                "example": "network,asset,decimals,opening,inGross,inFee,inNet,outGross,outFee,outNetworkFee,holdsChange,adjustments,closing\r\ntron,USDT,6,1050.5,48250,482.5,47767.5,30000,170,10.44,1508.5,0,18637.56\r\n"
               }
             }
           },
@@ -9194,7 +9167,7 @@
                   "asset": {
                     "type": "string",
                     "pattern": "^[A-Z0-9]{2,10}$",
-                    "description": "Asset of the payout: USDT or TRX"
+                    "description": "Asset of the payout: an asset of the network with payoutsEnabled in listNetworks (GET /api/v1/networks of the merchant API), for example USDT in tron"
                   },
                   "toAddress": {
                     "type": "string",
@@ -9770,7 +9743,7 @@
                   "asset": {
                     "type": "string",
                     "pattern": "^[A-Z0-9]{2,10}$",
-                    "description": "Asset of the payout: USDT or TRX"
+                    "description": "Asset of the payout: an asset of the network with payoutsEnabled in listNetworks (GET /api/v1/networks of the merchant API), for example USDT in tron"
                   },
                   "amount": {
                     "type": "string",
@@ -12051,7 +12024,7 @@
                   "$ref": "#/components/schemas/V1Tariff"
                 },
                 "example": {
-                  "tariffPlanName": "Стандарт",
+                  "tariffPlanName": "Standard",
                   "rules": [
                     {
                       "operationType": "deposit",
