@@ -1,7 +1,13 @@
 import { CheckoutResource } from './checkout';
 import { resolveConfig, type PspClientOptions, type PspNet } from './config';
 import { AccountResource } from './resources/account';
+import { BalancesResource } from './resources/balances';
+import { DepositsResource } from './resources/deposits';
 import { InvoicesResource } from './resources/invoices';
+import { NetworksResource } from './resources/networks';
+import { OperationsResource } from './resources/operations';
+import { PayoutsResource } from './resources/payouts';
+import { TariffResource } from './resources/tariff';
 import { WebhookSettingsResource } from './resources/webhook';
 import { Transport } from './transport';
 import { VERSION } from './version';
@@ -25,6 +31,18 @@ export class PspClient {
   readonly account: AccountResource;
   /** Invoices: create, read, history, cancel. */
   readonly invoices: InvoicesResource;
+  /** Balances per network and asset and per currency. */
+  readonly balances: BalancesResource;
+  /** Operations of the ledger, their totals and the statement (JSON or CSV). */
+  readonly operations: OperationsResource;
+  /** Deposits to the invoice addresses and their credit status. */
+  readonly deposits: DepositsResource;
+  /** Payouts: quote, request, read, cancel. */
+  readonly payouts: PayoutsResource;
+  /** Connected networks and assets, payout limits. */
+  readonly networks: NetworksResource;
+  /** Fee rules of the merchant. */
+  readonly tariff: TariffResource;
   /** Webhook URL, test webhook, delivery log, verification of incoming webhooks. */
   readonly webhook: WebhookSettingsResource;
   /** Links to the payment widget (an iframe page), built locally with the API secret. */
@@ -44,6 +62,12 @@ export class PspClient {
     this.account = new AccountResource(transport);
     this.checkout = new CheckoutResource(config.apiKey, config.apiSecret, config.checkoutUrl);
     this.invoices = new InvoicesResource(transport);
+    this.balances = new BalancesResource(transport);
+    this.operations = new OperationsResource(transport);
+    this.deposits = new DepositsResource(transport);
+    this.payouts = new PayoutsResource(transport);
+    this.networks = new NetworksResource(transport);
+    this.tariff = new TariffResource(transport);
     let warnedPreviousSecret = false;
     this.webhook = new WebhookSettingsResource(transport, (body, headers, verifyOptions) =>
       verifyWebhook({
