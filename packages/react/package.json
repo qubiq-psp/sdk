@@ -1,0 +1,106 @@
+{
+  "name": "@qubiq-psp/react",
+  "version": "0.1.2",
+  "description": "React component for the PSP payment widget: embeds the payment page in an iframe and reports the invoice status",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/qubiq-psp/react-sdk.git"
+  },
+  "homepage": "https://github.com/qubiq-psp/react-sdk#readme",
+  "bugs": {
+    "url": "https://github.com/qubiq-psp/react-sdk/issues"
+  },
+  "type": "module",
+  "engines": {
+    "node": ">=18"
+  },
+  "sideEffects": false,
+  "main": "./dist/index.cjs",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.cts",
+  "exports": {
+    ".": {
+      "import": {
+        "types": "./dist/index.d.ts",
+        "default": "./dist/index.js"
+      },
+      "require": {
+        "types": "./dist/index.d.cts",
+        "default": "./dist/index.cjs"
+      }
+    },
+    "./vanilla": {
+      "import": {
+        "types": "./dist/vanilla.d.ts",
+        "default": "./dist/vanilla.js"
+      },
+      "require": {
+        "types": "./dist/vanilla.d.cts",
+        "default": "./dist/vanilla.cjs"
+      }
+    },
+    "./package.json": "./package.json"
+  },
+  "files": [
+    "dist",
+    "vanilla",
+    "CHANGELOG.md"
+  ],
+  "keywords": [
+    "psp",
+    "payments",
+    "crypto",
+    "usdt",
+    "checkout",
+    "payment-widget",
+    "iframe",
+    "react"
+  ],
+  "publishConfig": {
+    "access": "public"
+  },
+  "peerDependencies": {
+    "react": ">=18"
+  },
+  "scripts": {
+    "build": "tsup",
+    "typecheck": "tsc",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "lint": "eslint . --max-warnings 0",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
+    "lockfile:lint": "lockfile-lint --path yarn.lock --type yarn --allowed-hosts yarn --validate-https --validate-integrity",
+    "package:check": "publint --strict --pack npm && attw --pack .",
+    "prepack": "yarn build",
+    "ci:release": "yarn lockfile:lint && yarn typecheck && yarn lint && yarn format:check && yarn test && yarn build && yarn package:check",
+    "ci": "yarn ci:release && yarn smoke",
+    "smoke": "node scripts/smoke.mjs"
+  },
+  "devDependencies": {
+    "@arethetypeswrong/cli": "^0.18.5",
+    "@testing-library/dom": "^10",
+    "@testing-library/react": "^16.3",
+    "@types/node": "^20.19.0",
+    "@types/react": "^19",
+    "@types/react-dom": "^19",
+    "eslint": "^9.39",
+    "eslint-plugin-react-hooks": "^7",
+    "jsdom": "^26",
+    "lockfile-lint": "^4.14",
+    "prettier": "^3.6",
+    "publint": "^0.3.25",
+    "react": "^19",
+    "react-dom": "^19",
+    "tsup": "^8.5",
+    "typescript": "~5.9.3",
+    "typescript-eslint": "^8.46",
+    "vite": "^7.3.7",
+    "vitest": "^4.1.12"
+  },
+  "resolutions": {
+    "esbuild": "^0.28.2",
+    "vite": "^7.3.7"
+  }
+}
