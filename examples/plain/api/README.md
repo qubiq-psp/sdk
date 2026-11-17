@@ -101,6 +101,37 @@ credential). Empty means unset.
 
 A key and a secret of different networks are refused whatever `APP_TESTNET_ONLY` says.
 
+## Docker
+
+[`examples/plain/Dockerfile`](../Dockerfile) builds one image with this backend and the `plain` build of
+[`examples/ui`](../../ui), served from `APP_UI_DIR`. The build context is the repository root:
+
+```bash
+docker build -f examples/plain/Dockerfile -t psp-example-plain .     # at the repository root
+docker run -d --name psp-example-plain --env-file examples/plain/api/.env \
+  -p 127.0.0.1:4600:4600 psp-example-plain
+curl -s http://127.0.0.1:4600/api/config
+```
+
+- **Stages.** `manifests` (every `package.json` of the workspace, the lockfile check); `build`
+  (`pnpm install --frozen-lockfile --ignore-scripts` filtered to the backend and the UI, then `tsc` of the backend
+  and `vite build --mode plain`, which fails on any `@qubiq-psp/*` module); `deps` (`pnpm install --prod` of the
+  backend only); the runtime on `node:22.23.5-alpine3.24`, pinned by digest: the compiled backend, its production
+  `node_modules` and the UI — no pnpm, sources or dev tools. pnpm is the version of the root `package.json`, through
+  corepack.
+- **Runtime.** User `node` (uid 1000); the files belong to root and are read-only for it. `NODE_ENV=production`,
+  `HOST=0.0.0.0`, `PORT=4600`, `APP_UI_DIR=/repo/ui`, `APP_TESTNET_ONLY=true` (a `psp_pk_live_…` key stops the
+  start). `HEALTHCHECK` is `GET /api/config`, which never calls the platform.
+- **Environment.** Nothing secret is in the image: `PSP_API_URL`, `PSP_API_KEY`, `PSP_API_SECRET`,
+  `PSP_CHECKOUT_URL`, `APP_PUBLIC_URL` and the rest of [Environment](#environment) come from `--env-file` or the
+  compose file. `PSP_API_URL` must be `https://` (plain http only for `localhost`).
+- **Network.** The process listens on all interfaces of the container (`HOST=0.0.0.0`), so publish the port on
+  loopback only — `127.0.0.1:4600:4600`, never `4600:4600` — and put nginx with basic auth in front, as the
+  deployment from psp does. `X-Forwarded-For` is trusted from loopback only, and inside the container nginx's
+  connections come from the Docker bridge: the logs show the bridge address as the client, nothing more.
+
+CI builds this image on every pull request (`docker build` only, nothing is pushed).
+
 ## Security model of the deployment
 
 - **One merchant per deployment, from the environment.** The API URL, key and secret are never taken from a request,

@@ -81,6 +81,37 @@ rule, never the value.
 
 The `PSP_*` names are the ones the SDK reads by itself; here they are checked first and passed explicitly.
 
+## Docker
+
+[`examples/sdk/Dockerfile`](../Dockerfile) builds one image with this backend and the `sdk` build of
+[`examples/ui`](../../ui), served from `APP_UI_DIR`. The build context is the repository root:
+
+```bash
+docker build -f examples/sdk/Dockerfile -t psp-example-sdk .     # at the repository root
+docker run -d --name psp-example-sdk --env-file examples/sdk/api/.env \
+  -p 127.0.0.1:4900:4900 psp-example-sdk
+curl -s http://127.0.0.1:4900/api/config
+```
+
+- **Stages.** `manifests` (every `package.json` of the workspace, the lockfile check); `build`
+  (`pnpm install --frozen-lockfile --ignore-scripts` filtered to the backend, the UI and the workspace packages they
+  take, then tsup of `@qubiq-psp/sdk` and `@qubiq-psp/react`, `tsc` of the backend and `vite build --mode sdk`);
+  `deps` (`pnpm install --prod` of the backend only); the runtime on `node:22.23.5-alpine3.24`, pinned by digest: the
+  compiled backend and SDK, the production `node_modules` and the UI — no pnpm, sources or dev tools. pnpm is the
+  version of the root `package.json`, through corepack.
+- **Runtime.** User `node` (uid 1000); the files belong to root and are read-only for it. `NODE_ENV=production`,
+  `HOST=0.0.0.0`, `PORT=4900`, `APP_UI_DIR=/repo/ui`, `APP_TESTNET_ONLY=true` (a `psp_pk_live_…` key stops the
+  start). `HEALTHCHECK` is `GET /api/config`, which never calls the platform.
+- **Environment.** Nothing secret is in the image: `PSP_API_URL`, `PSP_API_KEY`, `PSP_API_SECRET`,
+  `PSP_CHECKOUT_URL`, `APP_PUBLIC_URL` and the rest of [Environment](#environment) come from `--env-file` or the
+  compose file. `PSP_API_URL` must be `https://` (plain http only for `localhost`).
+- **Network.** The process listens on all interfaces of the container (`HOST=0.0.0.0`), so publish the port on
+  loopback only — `127.0.0.1:4900:4900`, never `4900:4900` — and put nginx with basic auth in front, as the
+  deployment from psp does. `X-Forwarded-For` is trusted from loopback only, and inside the container nginx's
+  connections come from the Docker bridge: the logs show the bridge address as the client, nothing more.
+
+CI builds this image on every pull request (`docker build` only, nothing is pushed).
+
 ## How each area uses the SDK
 
 Every passthrough route calls one SDK method — the `sdkMethod` of the route in

@@ -51,6 +51,11 @@
   "peerDependencies": {
     "vitest": "^3.2"
   },
+  "peerDependenciesMeta": {
+    "vitest": {
+      "optional": true
+    }
+  },
   "devDependencies": {
     "@redocly/cli": "1.34.23",
     "@types/node": "^22",
