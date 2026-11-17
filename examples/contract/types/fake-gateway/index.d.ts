@@ -4,8 +4,8 @@ export type { CheckoutPayload, CheckoutTokenCheck } from '../internal/crypto.js'
 export declare const TEST_KEY = "psp_pk_test_3Kd9Lm2Qx7Rt5Vb8Nw1Hc4Zp";
 /** The made-up secret of the gateway docs (13.5), with the testnet prefix. */
 export declare const TEST_SECRET = "psp_sk_test_9fT2kQ7mW4xL1vR8nB5cJ3hD6gZ0aY2eUq4N";
-/** A made-up previous secret, for webhooks signed during a rotation. */
-export declare const TEST_PREVIOUS_SECRET = "psp_sk_test_Pr3v10usS3cr3tR0tat10nW1nd0wQxZ7k";
+/** A made-up previous secret, for webhooks signed during a rotation: the new secret of the gateway docs (14), testnet prefix. */
+export declare const TEST_PREVIOUS_SECRET = "psp_sk_test_Hq3vN8xK1mT6wR4cZ9bL2fJ7dY5gA0sEp6Wt";
 /** A made-up live key and secret: a backend with `APP_TESTNET_ONLY=true` must refuse to start with them. */
 export declare const LIVE_KEY = "psp_pk_live_7Hq2Wd5Lx9Mz3Rv8Nc1Bt6Ky";
 export declare const LIVE_SECRET = "psp_sk_live_4Fg8Jk2Lm6Np9Qr3St7Vw1Xy5Za0Bc8De2Gh";

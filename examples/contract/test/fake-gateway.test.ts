@@ -5,6 +5,8 @@ import { createServer, type IncomingMessage } from 'node:http';
 import type { AddressInfo } from 'node:net';
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import {
+  LIVE_KEY,
+  LIVE_SECRET,
   TEST_KEY,
   TEST_PREVIOUS_SECRET,
   TEST_SECRET,
@@ -355,5 +357,19 @@ describe('webhook sender', () => {
     await sendWebhook(url, { fields: { chain: 'mainnet' } });
     expect(JSON.parse(received.at(-1)?.body ?? '{}')).toMatchObject({ chain: 'mainnet' });
     expect(JSON.parse(webhookBody('webhook.test'))).toMatchObject({ type: 'webhook.test', data: { test: true } });
+  });
+});
+
+describe('test credentials', () => {
+  // A backend built on @qubiq-psp/sdk refuses a malformed key or secret at start, so every made-up credential must
+  // have the platform's format: a key of 24 and a secret of 36 base62 characters after the prefix.
+  it.each([
+    ['TEST_KEY', TEST_KEY, /^psp_pk_test_[0-9A-Za-z]{24}$/],
+    ['LIVE_KEY', LIVE_KEY, /^psp_pk_live_[0-9A-Za-z]{24}$/],
+    ['TEST_SECRET', TEST_SECRET, /^psp_sk_test_[0-9A-Za-z]{36}$/],
+    ['TEST_PREVIOUS_SECRET', TEST_PREVIOUS_SECRET, /^psp_sk_test_[0-9A-Za-z]{36}$/],
+    ['LIVE_SECRET', LIVE_SECRET, /^psp_sk_live_[0-9A-Za-z]{36}$/],
+  ])('%s has the platform format', (_name, value, re) => {
+    expect(value).toMatch(re);
   });
 });
