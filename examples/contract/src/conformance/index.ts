@@ -85,23 +85,27 @@ export function conformanceEnv(gatewayUrl: string, overrides: Partial<Conformanc
 }
 
 /**
- * The testnet guard is a start-time behaviour: with `APP_TESTNET_ONLY=true` and a `psp_pk_live_…` key the backend
- * must refuse to start (`start` rejects). Resolves when it does; throws when the backend started.
+ * The testnet guard is a start-time behaviour: with `APP_TESTNET_ONLY=true` — and with it unset (empty), the default —
+ * and a `psp_pk_live_…` key the backend must refuse to start (`start` rejects). Resolves when it does; throws when
+ * the backend started.
  */
 export async function expectStartRefusesLiveKey(start: StartBackend): Promise<void> {
-  const env = conformanceEnv('https://api.conformance.example', {
-    PSP_API_KEY: LIVE_KEY,
-    PSP_API_SECRET: LIVE_SECRET,
-    PSP_API_PREVIOUS_SECRET: '',
-  });
-  let started: StartedBackend | undefined;
-  try {
-    started = await start(env);
-  } catch {
-    return;
+  for (const flag of ['true', '']) {
+    const env = conformanceEnv('https://api.conformance.example', {
+      PSP_API_KEY: LIVE_KEY,
+      PSP_API_SECRET: LIVE_SECRET,
+      PSP_API_PREVIOUS_SECRET: '',
+      APP_TESTNET_ONLY: flag,
+    });
+    let started: StartedBackend | undefined;
+    try {
+      started = await start(env);
+    } catch {
+      continue;
+    }
+    await started.stop();
+    throw new Error(`the backend started with APP_TESTNET_ONLY=${JSON.stringify(flag)} and a psp_pk_live_ key`);
   }
-  await started.stop();
-  throw new Error('the backend started with APP_TESTNET_ONLY=true and a psp_pk_live_ key');
 }
 
 // ------------------------------------------------------------------------------------------------ helpers

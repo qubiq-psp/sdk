@@ -720,7 +720,7 @@ export interface components {
             /** @description Version of `@qubiq-psp/sdk` (sdk); `null` (plain). */
             sdkVersion: string | null;
             /**
-             * @description By the key prefix. Deployed examples are always `testnet`; with `APP_TESTNET_ONLY=true` a backend refuses to start with `psp_pk_live_`.
+             * @description By the key prefix. Deployed examples are always `testnet`; unless `APP_TESTNET_ONLY=false` a backend refuses to start with `psp_pk_live_`.
              * @enum {string}
              */
             net: "testnet" | "mainnet";

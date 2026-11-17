@@ -31,7 +31,7 @@ describe('loadConfig', () => {
       checkoutUrl: 'https://pay.psp.qubiq.cc',
       publicUrl: null,
       webhookUrl: null,
-      testnetOnly: false,
+      testnetOnly: true,
       upstreamTimeoutMs: 180_000,
       host: '127.0.0.1',
       port: 4600,
@@ -105,8 +105,18 @@ describe('loadConfig', () => {
     expect(found.join('\n')).not.toContain(SHOP_SECRET);
   });
 
-  describe('the testnet guard (APP_TESTNET_ONLY=true, set in every deployment)', () => {
+  describe('the testnet guard (APP_TESTNET_ONLY, on unless false)', () => {
     const GUARD = { ...BASE_ENV, APP_TESTNET_ONLY: 'true' };
+
+    it('is on by default: unset or empty refuses a live pair', () => {
+      const flags: Record<string, string>[] = [{}, { APP_TESTNET_ONLY: '' }];
+      for (const flag of flags) {
+        expect(problems({ ...BASE_ENV, ...flag, PSP_API_KEY: LIVE_KEY, PSP_API_SECRET: LIVE_SECRET })).toEqual([
+          'APP_TESTNET_ONLY=true: PSP_API_KEY is a live (mainnet) key psp_pk_live_…',
+          'APP_TESTNET_ONLY=true: PSP_API_SECRET is a live (mainnet) secret psp_sk_live_…',
+        ]);
+      }
+    });
 
     it('refuses a live key or a live secret', () => {
       expect(problems({ ...GUARD, PSP_API_KEY: LIVE_KEY, PSP_API_SECRET: LIVE_SECRET })).toEqual([
@@ -127,16 +137,19 @@ describe('loadConfig', () => {
       expect(problems({ ...GUARD, PSP_API_KEY: TEST_KEY, PSP_API_SECRET: LIVE_SECRET })).toContain(
         'PSP_API_SECRET belongs to another network than the testnet PSP_API_KEY',
       );
-      expect(problems({ ...BASE_ENV, PSP_API_KEY: LIVE_KEY, PSP_API_SECRET: TEST_SECRET })).toEqual([
-        'PSP_API_SECRET belongs to another network than the mainnet PSP_API_KEY',
-      ]);
+      expect(
+        problems({ ...BASE_ENV, APP_TESTNET_ONLY: 'false', PSP_API_KEY: LIVE_KEY, PSP_API_SECRET: TEST_SECRET }),
+      ).toEqual(['PSP_API_SECRET belongs to another network than the mainnet PSP_API_KEY']);
     });
 
-    it('unset or false lets a mainnet pair through; other values are refused', () => {
-      for (const flag of [{}, { APP_TESTNET_ONLY: 'false' }]) {
-        const c = loadConfig({ ...BASE_ENV, ...flag, PSP_API_KEY: LIVE_KEY, PSP_API_SECRET: LIVE_SECRET });
-        expect(c).toMatchObject({ net: 'mainnet', testnetOnly: false });
-      }
+    it('only an explicit false lets a mainnet pair through; other values are refused', () => {
+      const c = loadConfig({
+        ...BASE_ENV,
+        APP_TESTNET_ONLY: 'false',
+        PSP_API_KEY: LIVE_KEY,
+        PSP_API_SECRET: LIVE_SECRET,
+      });
+      expect(c).toMatchObject({ net: 'mainnet', testnetOnly: false });
       expect(problems({ ...BASE_ENV, APP_TESTNET_ONLY: 'yes' })).toEqual(['APP_TESTNET_ONLY must be true or false']);
     });
   });

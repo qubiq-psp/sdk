@@ -37,8 +37,9 @@ export declare const UPSTREAM_TIMEOUT_MS = 1500;
 /** The environment for a backend against a fake gateway at `gatewayUrl`. */
 export declare function conformanceEnv(gatewayUrl: string, overrides?: Partial<ConformanceEnv>): ConformanceEnv;
 /**
- * The testnet guard is a start-time behaviour: with `APP_TESTNET_ONLY=true` and a `psp_pk_live_…` key the backend
- * must refuse to start (`start` rejects). Resolves when it does; throws when the backend started.
+ * The testnet guard is a start-time behaviour: with `APP_TESTNET_ONLY=true` — and with it unset (empty), the default —
+ * and a `psp_pk_live_…` key the backend must refuse to start (`start` rejects). Resolves when it does; throws when
+ * the backend started.
  */
 export declare function expectStartRefusesLiveKey(start: StartBackend): Promise<void>;
 /** Defines the conformance tests of one backend (a `describe` block). Call it at the top of a vitest file. */

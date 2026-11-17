@@ -36,8 +36,8 @@ const invalid = (field: string, message: string): HttpError =>
   new HttpError(400, 'example_invalid_request', message, { field, message });
 
 export async function startReferenceBackend(env: ConformanceEnv): Promise<StartedBackend> {
-  if (env.APP_TESTNET_ONLY === 'true' && env.PSP_API_KEY.startsWith('psp_pk_live_')) {
-    throw new Error('APP_TESTNET_ONLY=true: a psp_pk_live_ key is refused');
+  if (env.APP_TESTNET_ONLY !== 'false' && env.PSP_API_KEY.startsWith('psp_pk_live_')) {
+    throw new Error('APP_TESTNET_ONLY is on: a psp_pk_live_ key is refused');
   }
   const apiUrl = env.PSP_API_URL.replace(/\/$/, '');
   const timeoutMs = Number(env.APP_UPSTREAM_TIMEOUT_MS || 180_000);

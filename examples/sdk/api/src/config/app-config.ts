@@ -25,7 +25,7 @@ export interface AppConfig {
   readonly publicUrl: string | null;
   /** `${APP_PUBLIC_URL}/webhooks/psp` — the URL to set with `PUT /api/webhook`; `null` without `APP_PUBLIC_URL`. */
   readonly webhookUrl: string | null;
-  /** `APP_TESTNET_ONLY=true` — a live key or secret stops the start. */
+  /** `APP_TESTNET_ONLY`, on unless `false` — a live key or secret stops the start. */
   readonly testnetOnly: boolean;
   readonly host: string;
   readonly port: number;
@@ -148,7 +148,9 @@ export function loadConfig(env: Env): AppConfig {
   if (testnetOnlyRaw !== undefined && testnetOnlyRaw !== 'true' && testnetOnlyRaw !== 'false') {
     problems.push('APP_TESTNET_ONLY must be true or false');
   }
-  const testnetOnly = testnetOnlyRaw === 'true';
+  // The deployed examples talk to the testnet only: the guard is on unless APP_TESTNET_ONLY=false says otherwise, so
+  // an env file that forgets the variable (or leaves it empty) cannot start the example with a live key
+  const testnetOnly = testnetOnlyRaw !== 'false';
   // The deploy guard: a deployed example never holds real money
   if (testnetOnly && (live(apiKey) || live(apiSecret) || live(previousApiSecret))) {
     problems.push(

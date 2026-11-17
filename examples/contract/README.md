@@ -57,7 +57,7 @@ TypeScript sources (ESM) that vitest in a consumer runs as they are, with declar
 ## Ground rules
 
 - **One merchant per deployment.** The API URL, key and secret come from the backend's environment; the UI never sees
-  the secret. Testnet only: with `APP_TESTNET_ONLY=true` (set in every deployment) a backend refuses to start with a
+  the secret. Testnet only: `APP_TESTNET_ONLY` is on unless explicitly `false` (unset or empty is on), and then a backend refuses to start with a
   `psp_pk_live_` key.
 - **Same origin.** The UI calls relative URLs. nginx serves the UI and routes `/api/*` and `/webhooks/*` to the backend.
   Basic auth is ambient (a browser sends it with any request to the deployment, also one made by a page of another
@@ -91,7 +91,7 @@ TypeScript sources (ESM) that vitest in a consumer runs as they are, with declar
 | `PSP_API_PREVIOUS_SECRET` | no       | The previous secret during a rotation; the receiver accepts webhooks signed with it    |
 | `PSP_CHECKOUT_URL`        | yes      | Origin of the payment page, e.g. `https://pay.psp.qubiq.cc`                            |
 | `APP_PUBLIC_URL`          | no       | Public URL of this deployment; gives `webhookUrl` in `/api/config`                     |
-| `APP_TESTNET_ONLY`        | no       | `true` — refuse to start with a `psp_pk_live_` key. Every deployment sets it           |
+| `APP_TESTNET_ONLY`        | no       | Default `true` — refuse to start with a `psp_pk_live_` key; only `false` turns it off  |
 | `APP_UPSTREAM_TIMEOUT_MS` | no       | Timeout of one platform attempt, ms; default 180 000 (the conformance suite sets 1500) |
 | `APP_LOG_LIMIT`           | no       | Entries kept in memory per log (request log, received webhooks); default 1000          |
 | `APP_LOG_MAX_BYTES`       | no       | Bytes kept in memory per log, counted as the entries' JSON; default 33 554 432 (32 MB) |
@@ -388,7 +388,7 @@ the copy declares the `V1Statement` object for `text/csv` too; the contract decl
 - [ ] Never expose the secret or any part of it: not in `/api/config`, not in the logs, not in errors.
 - [ ] Accept webhooks signed with `PSP_API_PREVIOUS_SECRET` when it is set (sdk: the SDK reads the variable itself;
       plain: checks both secrets) and report `signedWith: "previous"`.
-- [ ] Refuse to start with a `psp_pk_live_` key when `APP_TESTNET_ONLY=true`.
+- [ ] Refuse to start with a `psp_pk_live_` key unless `APP_TESTNET_ONLY=false` (unset or empty means `true`).
 - [ ] No platform calls except to serve a contract request.
 
 All of this is checked by the conformance suite — see the next section.

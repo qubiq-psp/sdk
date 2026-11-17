@@ -84,21 +84,21 @@ types and `routes.json`).
 All variables are checked at start; a wrong one stops the process with a message naming it (never the value of a
 credential). Empty means unset.
 
-| Variable                  | Required | Default             | What                                                                                                                                  |
-| ------------------------- | -------- | ------------------- | ------------------------------------------------------------------------------------------------------------------------------------- |
-| `PSP_API_URL`             | yes      |                     | Merchant API origin, e.g. `https://api.psp.qubiq.cc`. https; plain http only for `localhost`/`127.0.0.1`                              |
-| `PSP_API_KEY`             | yes      |                     | `psp_pk_test_…` (24 characters after the prefix)                                                                                      |
-| `PSP_API_SECRET`          | yes      |                     | `psp_sk_test_…` (36 characters); of the same network as the key                                                                       |
-| `PSP_API_PREVIOUS_SECRET` | no       |                     | The previous secret during a rotation: webhooks signed with it are accepted (`signedWith: previous`)                                  |
-| `PSP_CHECKOUT_URL`        | yes      |                     | Origin of the payment page, e.g. `https://pay.psp.qubiq.cc`                                                                           |
-| `APP_PUBLIC_URL`          | no       |                     | Public origin of this deployment; the webhook URL is `{APP_PUBLIC_URL}/webhooks/psp` (`webhookUrl` of `/api/config`)                  |
-| `APP_TESTNET_ONLY`        | no       | `false`             | `true` — refuse to start with a `psp_pk_live_…` key or a `psp_sk_live_…` secret. Every deployment sets it                             |
-| `APP_UPSTREAM_TIMEOUT_MS` | no       | `180000`            | Timeout of one platform attempt. The platform answers within 180 s; a shorter one turns a slow `createPayout` into an unknown outcome |
-| `HOST`, `PORT`            | no       | `127.0.0.1`, `4600` | Where to listen (behind nginx)                                                                                                        |
-| `APP_UI_DIR`              | no       |                     | A built `examples/ui` to serve, with `index.html` for every other GET outside `/api` and `/webhooks`                                  |
-| `APP_LOG_LIMIT`           | no       | `1000`              | Request-log entries and received webhooks kept in memory, each                                                                        |
-| `APP_LOG_MAX_BYTES`       | no       | `33554432`          | Bytes of request-log entries and of received webhooks kept in memory, each (1 MB – 1 GB); the oldest go first                         |
-| `LOG_LEVEL`               | no       | `info`              | `fatal`…`trace`, `silent`                                                                                                             |
+| Variable                  | Required | Default             | What                                                                                                                                                                   |
+| ------------------------- | -------- | ------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `PSP_API_URL`             | yes      |                     | Merchant API origin, e.g. `https://api.psp.qubiq.cc`. https; plain http only for `localhost`/`127.0.0.1`                                                               |
+| `PSP_API_KEY`             | yes      |                     | `psp_pk_test_…` (24 characters after the prefix)                                                                                                                       |
+| `PSP_API_SECRET`          | yes      |                     | `psp_sk_test_…` (36 characters); of the same network as the key                                                                                                        |
+| `PSP_API_PREVIOUS_SECRET` | no       |                     | The previous secret during a rotation: webhooks signed with it are accepted (`signedWith: previous`)                                                                   |
+| `PSP_CHECKOUT_URL`        | yes      |                     | Origin of the payment page, e.g. `https://pay.psp.qubiq.cc`                                                                                                            |
+| `APP_PUBLIC_URL`          | no       |                     | Public origin of this deployment; the webhook URL is `{APP_PUBLIC_URL}/webhooks/psp` (`webhookUrl` of `/api/config`)                                                   |
+| `APP_TESTNET_ONLY`        | no       | `true`              | Refuse to start with a `psp_pk_live_…` key or a `psp_sk_live_…` secret. Only an explicit `false` turns it off (local runs against mainnet); unset or empty keeps it on |
+| `APP_UPSTREAM_TIMEOUT_MS` | no       | `180000`            | Timeout of one platform attempt. The platform answers within 180 s; a shorter one turns a slow `createPayout` into an unknown outcome                                  |
+| `HOST`, `PORT`            | no       | `127.0.0.1`, `4600` | Where to listen (behind nginx)                                                                                                                                         |
+| `APP_UI_DIR`              | no       |                     | A built `examples/ui` to serve, with `index.html` for every other GET outside `/api` and `/webhooks`                                                                   |
+| `APP_LOG_LIMIT`           | no       | `1000`              | Request-log entries and received webhooks kept in memory, each                                                                                                         |
+| `APP_LOG_MAX_BYTES`       | no       | `33554432`          | Bytes of request-log entries and of received webhooks kept in memory, each (1 MB – 1 GB); the oldest go first                                                          |
+| `LOG_LEVEL`               | no       | `info`              | `fatal`…`trace`, `silent`                                                                                                                                              |
 
 A key and a secret of different networks are refused whatever `APP_TESTNET_ONLY` says.
 
@@ -140,7 +140,8 @@ CI builds this image on every pull request (`docker build` only, nothing is push
   never sent, logged, returned by `/api/config` or written into the request log.
 - **No login of its own.** nginx basic auth protects everything except `POST /webhooks/psp`, which the platform calls
   and which is protected by the signature. merchant-test-ui's own login (and its bypass, MTU-001) is gone.
-- **Testnet only** with `APP_TESTNET_ONLY=true`.
+- **Testnet only**: `APP_TESTNET_ONLY` is on unless set to `false`, so a forgotten variable cannot start a deployment with
+  a live key.
 - **Cross-site requests are refused** ([`src/same-origin.ts`](src/same-origin.ts)): basic auth is ambient, so a
   `POST`/`PUT`/`DELETE` to `/api` with `Sec-Fetch-Site` other than `same-origin`/`none` or an `Origin` whose host is
   not `Host` is `403 example_forbidden`, and a body without `Content-Type: application/json` is

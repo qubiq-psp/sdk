@@ -34,7 +34,7 @@ describe('loadConfig', () => {
       psp: { apiUrl: 'https://api.psp.qubiq.cc', apiKey: API_KEY, checkoutUrl: 'https://pay.psp.qubiq.cc' },
       publicUrl: null,
       webhookUrl: null,
-      testnetOnly: false,
+      testnetOnly: true,
       host: '127.0.0.1',
       port: 4900,
       uiDir: null,
@@ -149,11 +149,18 @@ describe('loadConfig', () => {
       expect(loadConfig(testEnv('https://a.test', { APP_TESTNET_ONLY: 'true' })).testnetOnly).toBe(true);
     });
 
-    it('false or unset lets a live key through (local runs only)', () => {
+    it('only false lets a live key through (local runs only)', () => {
       expect(loadConfig(testEnv('https://a.test', { ...live, APP_TESTNET_ONLY: 'false' })).psp.apiKey).toBe(LIVE_KEY);
+    });
+
+    it('is on when unset or empty', () => {
       const env = testEnv('https://a.test', live);
       delete env['APP_TESTNET_ONLY'];
-      expect(loadConfig(env).testnetOnly).toBe(false);
+      expect(errorOf(env)).toContain('APP_TESTNET_ONLY=true: refusing to start with a live key or secret');
+      expect(errorOf(testEnv('https://a.test', { ...live, APP_TESTNET_ONLY: '' }))).toContain('APP_TESTNET_ONLY=true');
+      const testnet = testEnv('https://a.test');
+      delete testnet['APP_TESTNET_ONLY'];
+      expect(loadConfig(testnet).testnetOnly).toBe(true);
     });
   });
 

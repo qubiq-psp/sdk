@@ -131,8 +131,9 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): Config {
   const previous = credential('PSP_API_PREVIOUS_SECRET', SECRET_RE, 'psp_sk_test_ + 36 letters and digits', false);
   const checkoutUrl = origin('PSP_CHECKOUT_URL', true);
   const publicUrl = origin('APP_PUBLIC_URL', false);
-  // Every deployment sets APP_TESTNET_ONLY=true: the deployed examples talk to the testnet only
-  const testnetOnly = flag('APP_TESTNET_ONLY', false);
+  // The deployed examples talk to the testnet only: the guard is on unless APP_TESTNET_ONLY=false says otherwise, so
+  // an env file that forgets the variable (or leaves it empty) cannot start the example with a live key
+  const testnetOnly = flag('APP_TESTNET_ONLY', true);
   // The platform answers any request within 180 s (gateway docs 13.10); a shorter timeout turns a slow success, e.g.
   // of createPayout, into an unknown outcome
   const upstreamTimeoutMs = integer('APP_UPSTREAM_TIMEOUT_MS', 180_000, 1, 600_000);

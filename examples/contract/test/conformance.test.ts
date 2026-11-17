@@ -6,7 +6,7 @@ import { startReferenceBackend } from './reference-backend.ts';
 defineConformanceSuite({ name: 'plain', start: startReferenceBackend });
 
 describe('testnet guard', () => {
-  it('the reference backend refuses a live key with APP_TESTNET_ONLY=true', async () => {
+  it('the reference backend refuses a live key unless APP_TESTNET_ONLY=false', async () => {
     await expectStartRefusesLiveKey(startReferenceBackend);
   });
 });

@@ -1500,7 +1500,7 @@ components:
         net:
           type: string
           enum: [testnet, mainnet]
-          description: By the key prefix. Deployed examples are always `testnet`; with `APP_TESTNET_ONLY=true` a backend refuses to start with `psp_pk_live_`.
+          description: By the key prefix. Deployed examples are always `testnet`; unless `APP_TESTNET_ONLY=false` a backend refuses to start with `psp_pk_live_`.
         apiUrl:
           type: string
           format: uri
