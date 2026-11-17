@@ -100,10 +100,32 @@ describe('screens', () => {
     await user.click(screen.getByRole('button', { name: 'Payment widget' }));
     await user.click(await screen.findByRole('button', { name: 'Create link' }));
     expect(await screen.findByTitle('Payment page')).toHaveAttribute('src', f.checkoutLink.url);
-    expect(called('createCheckoutLink')[0]!.body).toMatchObject({
+    // The lifetime is empty: not sent, the backend's default applies
+    expect(called('createCheckoutLink')[0]!.body).toEqual({
       branding: { companyName: 'Example shop', title: 'Order order-58213' },
-      expiresInSeconds: 86400,
     });
+  });
+
+  it('Payment widget: details.field of 400 example_invalid_request marks its input', async () => {
+    const user = userEvent.setup();
+    server.use(
+      handle('getInvoice', () => ({ ...f.example('getInvoice'), status: 'active' as const })),
+      handle('createCheckoutLink', () => ({
+        status: 400,
+        body: {
+          errorCode: 'example_invalid_request',
+          errorMessage: 'branding.logoUrl: must be https',
+          details: { field: 'branding.logoUrl', message: 'must be https' },
+        },
+      })),
+    );
+    renderAt(`/invoices/${INVOICE}`);
+    await screen.findByText('order-58213');
+    await user.click(screen.getByRole('button', { name: 'Payment widget' }));
+    await user.type(await screen.findByLabelText('Logo URL'), 'http://shop.example/logo.png');
+    await user.click(screen.getByRole('button', { name: 'Create link' }));
+    await waitFor(() => expect(screen.getByLabelText('Logo URL')).toHaveAttribute('aria-invalid', 'true'));
+    expect(screen.getByLabelText('Company name')).not.toHaveAttribute('aria-invalid');
   });
 
   it('refreshes by itself with X-Example-Source: poll when a webhook arrives', async () => {

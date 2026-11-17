@@ -35,11 +35,19 @@ export class CheckoutController {
       // The SDK checks the options (the gateway rules of 20.3) and throws TypeError on a bad one
       return this.psp.checkout.createUrl(invoiceId, options);
     } catch (err) {
-      // «branding.logoUrl must be https» → field branding.logoUrl
-      if (err instanceof TypeError) {
-        throw ExampleError.invalid(/^[A-Za-z.]+/.exec(err.message)?.[0] ?? 'body', err.message);
-      }
+      // «branding.logoUrl must be https» → field branding.logoUrl: the contract's `details.field` is the dotted path
+      // from the root of the body (`invoiceId` — the path parameter)
+      if (err instanceof TypeError) throw ExampleError.invalid(fieldOf(err.message), err.message);
       throw err;
     }
   }
+}
+
+/**
+ * The option an SDK message starts with (`branding.logo_url is not supported` → `branding.logo_url`), `invoiceId`
+ * for the path parameter, else `body`.
+ */
+function fieldOf(message: string): string {
+  const first = /^\S+/.exec(message)?.[0] ?? '';
+  return first === 'invoiceId' || OPTIONS.has(first.split('.')[0] ?? '') ? first : 'body';
 }

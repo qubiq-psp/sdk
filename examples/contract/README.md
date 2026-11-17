@@ -37,7 +37,9 @@ type CreateInvoiceBody = operations['createInvoice']['requestBody']['content']['
 ```
 
 `./types` is types only (`src/openapi.d.ts`), so it costs nothing at run time; it resolves through `exports` (Vite,
-`moduleResolution` `bundler`/`node16`) and through `typesVersions` (NestJS with the classic `node` resolution).
+`moduleResolution` `bundler`/`node16`) and through `typesVersions` (NestJS with the classic `node` resolution). It is
+generated with `defaultNonNullable: false`: a property with a `default` that is not `required` stays optional
+(`CheckoutLinkInput.expiresInSeconds?`), so a caller does not have to send the default itself.
 `./routes.json` suits a typed fetch client, the sdk backend's dispatch table and tests; `./openapi.yaml` and
 `./merchant-api.v1.json` are exported for contract tests and Swagger UI. `./conformance` and `./fake-gateway` are
 TypeScript sources (ESM) that vitest in a consumer runs as they are, with declarations in `types/` for the consumer's
@@ -197,12 +199,18 @@ Every error body has the platform's shape `{ errorCode, errorMessage, details }`
 
 | `errorCode`                     | Status | When                                                                                                        | `details`                            |
 | ------------------------------- | ------ | ----------------------------------------------------------------------------------------------------------- | ------------------------------------ |
-| `example_invalid_request`       | 400    | Refused before any platform call (see above); bad widget-link options; bad receiver settings or log filters | `{ field, message }`                 |
+| `example_invalid_request`       | 400    | Refused before any platform call (see above); bad widget-link options; bad receiver settings or log filters | `{ field, message }` (see below)     |
 | `example_not_found`             | 404    | Unknown route, request-log entry or received webhook                                                        | `null`                               |
 | `example_upstream_timeout`      | 504    | No answer from the platform in time                                                                         | `{ timeoutMs }`                      |
 | `example_upstream_unreachable`  | 502    | No answer at all: connection refused or closed before the answer, DNS or TLS failure                        | `{ cause }`                          |
 | `example_upstream_bad_response` | 502    | An answer that is not the platform's: a redirect, a non-JSON error body, an empty 2xx body                  | `{ status, requestId, bodyPreview }` |
 | `example_internal_error`        | 500    | A bug in the backend                                                                                        | `null`                               |
+
+`details.field` of `example_invalid_request` names the refused input the same way in both backends: for the JSON body,
+the dotted path from its root (`branding.logoUrl`, `expiresInSeconds`, `mode`), `body` for the body as a whole
+(not JSON, not an object); otherwise the name of the path parameter, query parameter or header as the contract spells
+it (`invoiceId`, `status` of the request-log filter, `X-Client-Request-Id`). The UI shows the error under the input of
+that name.
 
 The sdk backend maps SDK errors this way: `PspApiError` (and `PspAuthError`) → the platform status and
 `{ errorCode, errorMessage, details }` from the error, headers from `error.headers`; `PspTimeoutError` →
@@ -274,6 +282,11 @@ data: {"id":"5f6a…","webhookId":"c650…","event":"invoice.paid","verifyResult
 
 `POST /webhooks/psp` — the URL to set with `PUT /api/webhook` is `webhookUrl` of `/api/config`.
 
+The platform's delivery id (`id` of a delivery, `deliveryId` of `/api/webhook/deliveries/{deliveryId}`) is the
+notification id: equal to `X-Webhook-Id` and to `id` of the body, the same in every attempt and redelivery
+(webhook-service docs 13.2, 13.13). So `GET /api/received-webhooks?webhookId={deliveryId}` lists what the receiver got
+of a delivery, and a redelivery of an accepted webhook is a `duplicate`.
+
 1. The backend reads the raw body bytes before any parsing (up to 1 MB).
 2. It verifies them by webhook-service docs 13.6 with `PSP_API_SECRET`, and `PSP_API_PREVIOUS_SECRET` if set — sdk
    with `verifyWebhook()` without `expectedMerchantId`, plain by the same steps. The result is `ok` or the first failed
@@ -296,7 +309,7 @@ data: {"id":"5f6a…","webhookId":"c650…","event":"invoice.paid","verifyResult
 `POST /api/invoices/{invoiceId}/checkout-link` builds `{PSP_CHECKOUT_URL}/#v1.<payload>.<signature>` offline (gateway
 docs 20.2–20.3): sdk with `psp.checkout.createUrl()`, plain with its own HMAC. The input is the options of
 `createUrl()`: `branding` (`companyName` 1–64, `logoUrl` https ≤ 1024, `accentColor` `#rrggbb`, `theme`, `title` 1–100),
-`locale` (`ru`/`en`), `expiresInSeconds` (1–604800, default 86400). Options the SDK rejects are
+`locale` (`ru`/`en`), `expiresInSeconds` (1–604800, optional, default 86400). Options the SDK rejects are
 `400 example_invalid_request` from both backends. The backend does not check that the invoice exists: the payment page
 does when it opens. The UI shows `url` in an `<iframe allow="clipboard-write">` (or `<PspCheckout url>`), allows
 `checkoutUrl` in its `frame-src` and checks `event.origin` of the page's messages against it.
@@ -319,7 +332,9 @@ unstable names in bundles and generated types. The rendition changes only that:
 
 It is regenerated by `pnpm contract:sync` whenever the copy changes (after `api:sync` of the SDK);
 `pnpm contract:check` fails when it is stale. One deliberate deviation in the contract itself:
-the copy declares the `V1Statement` object for `text/csv` too; the contract declares a string.
+the copy declares the `V1Statement` object for `text/csv` too; the contract declares a string, so the generated
+`operations['getMerchantOperationsStatement']['responses'][200]['content']` is
+`{ 'application/json': V1Statement; 'text/csv': string }` — the UI types its CSV call by the `text/csv` entry.
 
 ## Coverage
 

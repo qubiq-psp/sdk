@@ -20,10 +20,17 @@ export type Body<O extends OpId> =
 
 type SuccessCode = 200 | 201 | 202 | 204;
 type JsonOf<R> = R extends { content: { 'application/json': infer J } } ? J : undefined;
+type CsvOf<R> = R extends { content: { 'text/csv': infer T } } ? T : never;
 /** The JSON body of a successful answer of an operation (any of its 2xx statuses). */
 export type Ok<O extends OpId> = {
   [C in keyof Op<O>['responses']]: C extends SuccessCode ? JsonOf<Op<O>['responses'][C]> : never;
 }[keyof Op<O>['responses']];
+/** The `text/csv` body of a successful answer, as the contract declares it (`string`); `never` without one. */
+export type CsvOk<O extends OpId> = {
+  [C in keyof Op<O>['responses']]: C extends SuccessCode ? CsvOf<Op<O>['responses'][C]> : never;
+}[keyof Op<O>['responses']];
+/** The operations with a `text/csv` success answer: the statement with `format=csv`. */
+export type CsvOpId = { [O in OpId]: [CsvOk<O>] extends [never] ? never : O }[OpId];
 
 /** How a call was made, for the screens and for the link to its request-log entries. */
 export interface CallMeta {
@@ -117,8 +124,6 @@ export interface CallOptions<O extends OpId> {
   source?: Source;
   /** Sent as `X-Client-Request-Id`; passthrough routes only. */
   clientRequestId?: string;
-  /** `text` — read the body as text (the CSV statement). */
-  as?: 'json' | 'text';
   signal?: AbortSignal;
 }
 
@@ -178,11 +183,31 @@ export function urlOf<O extends OpId>(operationId: O, options: Pick<CallOptions<
  * Calls one contract route. Resolves with the parsed body and how the call went; rejects with {@link ApiError} on any
  * non-2xx answer or when there is no answer. Platform errors arrive exactly as the platform sent them.
  */
-export async function call<O extends OpId>(operationId: O, options: CallOptions<O> = {}): Promise<ApiResponse<Ok<O>>> {
+export function call<O extends OpId>(operationId: O, options: CallOptions<O> = {}): Promise<ApiResponse<Ok<O>>> {
+  return send(operationId, options, 'json') as Promise<ApiResponse<Ok<O>>>;
+}
+
+/**
+ * Calls a route for its `text/csv` body: the CSV statement (`format=csv`). Only operations whose contract declares a
+ * `text/csv` answer are accepted, and the result has the contract's type of that answer (`string`).
+ */
+export function callText<O extends CsvOpId>(
+  operationId: O,
+  options: CallOptions<O> = {},
+): Promise<ApiResponse<CsvOk<O>>> {
+  return send(operationId, options, 'text') as Promise<ApiResponse<CsvOk<O>>>;
+}
+
+/** One call: `json` parses the success body (and refuses a body that is not JSON), `text` keeps it as text. */
+async function send<O extends OpId>(
+  operationId: O,
+  options: CallOptions<O>,
+  as: 'json' | 'text',
+): Promise<ApiResponse<unknown>> {
   const route = routeOf(operationId);
   const url = urlOf(operationId, options);
   const source = options.source ?? 'ui';
-  const headers: Record<string, string> = { accept: options.as === 'text' ? 'text/csv, */*' : 'application/json' };
+  const headers: Record<string, string> = { accept: as === 'text' ? 'text/csv, */*' : 'application/json' };
   // Only the passthrough routes know these headers; the example routes would ignore them
   if (!route.extra) {
     headers['X-Example-Source'] = source;
@@ -236,7 +261,7 @@ export async function call<O extends OpId>(operationId: O, options: CallOptions<
   meta.durationMs = Date.now() - startedAt.getTime();
   const isJson = (res.headers.get('content-type') ?? '').includes('json');
   let json: unknown = undefined;
-  if (text && (isJson || options.as !== 'text')) {
+  if (text && (isJson || as !== 'text')) {
     try {
       json = JSON.parse(text);
     } catch {
@@ -245,19 +270,14 @@ export async function call<O extends OpId>(operationId: O, options: CallOptions<
   }
 
   if (!res.ok) throw new ApiError(meta, json, text || null);
-  if (options.as === 'text') return { data: text as Ok<O>, meta };
+  if (as === 'text') return { data: text, meta };
   if (text && json === undefined) {
     const body = { errorCode: 'ui_bad_response', errorMessage: 'A 2xx answer that is not JSON', details: null };
     throw new ApiError(meta, body, text, { origin: 'backend' });
   }
-  return { data: json as Ok<O>, meta };
+  return { data: json, meta };
 }
 
 /** The message of any error, for toasts. */
 export const errorText = (err: unknown): string =>
   err instanceof ApiError ? `${err.errorCode}: ${err.errorMessage}` : err instanceof Error ? err.message : String(err);
-
-/** Calls a route for its body as text: the CSV statement (`format=csv`). */
-export function callText<O extends OpId>(operationId: O, options: CallOptions<O> = {}): Promise<ApiResponse<string>> {
-  return call(operationId, { ...options, as: 'text' }) as Promise<ApiResponse<string>>;
-}

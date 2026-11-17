@@ -174,7 +174,8 @@ export interface paths {
         };
         /**
          * Statement for a period, JSON or CSV (format=csv)
-         * @description Passthrough of `GET /api/v1/operations/statement`.
+         * @description Passthrough of `GET /api/v1/operations/statement`. The media type of the answer follows `format`:
+         *     `application/json` (`V1Statement`) without it or with `format=json`, `text/csv` (a string) with `format=csv`.
          */
         get: operations["getMerchantOperationsStatement"];
         put?: never;
@@ -427,6 +428,10 @@ export interface paths {
         /**
          * The webhook delivery log, with filters and pages
          * @description Passthrough of `GET /api/v1/webhook/deliveries`.
+         *
+         *     The delivery id (`deliveryId`, `id` of a delivery) is the notification id: equal to `X-Webhook-Id` and to `id` of
+         *     the webhook body, the same in every attempt and redelivery (webhook-service docs 13.2, 13.13). So
+         *     `GET /api/received-webhooks?webhookId={deliveryId}` lists what the receiver got of a delivery.
          */
         get: operations["listDeliveries"];
         put?: never;
@@ -447,6 +452,10 @@ export interface paths {
         /**
          * A delivery with its body and attempts
          * @description Passthrough of `GET /api/v1/webhook/deliveries/{deliveryId}`.
+         *
+         *     The delivery id (`deliveryId`, `id` of a delivery) is the notification id: equal to `X-Webhook-Id` and to `id` of
+         *     the webhook body, the same in every attempt and redelivery (webhook-service docs 13.2, 13.13). So
+         *     `GET /api/received-webhooks?webhookId={deliveryId}` lists what the receiver got of a delivery.
          */
         get: operations["getDelivery"];
         put?: never;
@@ -468,7 +477,8 @@ export interface paths {
         put?: never;
         /**
          * Send a delivery again
-         * @description Passthrough of `POST /api/v1/webhook/deliveries/{deliveryId}/redeliver`.
+         * @description Passthrough of `POST /api/v1/webhook/deliveries/{deliveryId}/redeliver`. The redelivery goes with the same
+         *     `X-Webhook-Id` (= `deliveryId`) and body bytes, so a receiver that already accepted it answers as to a duplicate.
          */
         post: operations["redeliverDelivery"];
         delete?: never;
@@ -669,7 +679,10 @@ export interface components {
          * @description Codes of errors produced by a backend itself, never by the platform:
          *     - `example_invalid_request` (400) — refused before any platform call: a bad JSON body, an `X-Client-Request-Id`
          *       outside `^[\x21-\x7E]{1,128}$`, a path id that is empty, `.` or `..`, bad widget-link options, bad receiver settings or log
-         *       filters. `details`: `{ field, message }`.
+         *       filters. `details`: `{ field, message }`. `field` names the refused input: for the JSON body, the dotted path
+         *       from its root (`branding.logoUrl`, `expiresInSeconds`, `status`), `body` for the body as a whole; otherwise
+         *       the name of the path parameter, query parameter or header as the contract spells it (`invoiceId`, `status`,
+         *       `X-Client-Request-Id`).
          *     - `example_not_found` (404) — an unknown route, request-log entry or received webhook.
          *     - `example_upstream_timeout` (504) — the platform did not answer within `APP_UPSTREAM_TIMEOUT_MS`. `details`:
          *       `{ timeoutMs }`.
@@ -747,8 +760,11 @@ export interface components {
              * @enum {string}
              */
             locale?: "ru" | "en";
-            /** @default 86400 */
-            expiresInSeconds: number;
+            /**
+             * @description Lifetime of the link. Optional; without it the backend uses 86400 (24 h), as the SDK does.
+             * @default 86400
+             */
+            expiresInSeconds?: number;
         };
         CheckoutLink: {
             /**
@@ -856,7 +872,7 @@ export interface components {
             id: string;
             /** Format: date-time */
             receivedAt: string;
-            /** @description `X-Webhook-Id`. */
+            /** @description `X-Webhook-Id` — equal to `id` of the platform delivery (`deliveryId`). */
             webhookId: string | null;
             /** @description `X-Webhook-Event`. */
             event: string | null;
@@ -5541,7 +5557,7 @@ export interface operations {
         parameters: {
             query?: {
                 invoiceId?: string;
-                /** @description `X-Webhook-Id` — all attempts and redeliveries of one notification. */
+                /** @description `X-Webhook-Id` — all attempts and redeliveries of one notification. Equal to the delivery id of `/api/webhook/deliveries`. */
                 webhookId?: string;
                 /** @description `X-Webhook-Event`, e.g. `invoice.paid`, `webhook.test`. */
                 event?: string;

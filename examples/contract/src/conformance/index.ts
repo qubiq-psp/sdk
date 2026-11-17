@@ -278,9 +278,13 @@ export function defineConformanceSuite(options: ConformanceOptions): void {
     return { last, log };
   }
 
-  async function expectExampleError(res: Answer, status: number, errorCode: string): Promise<void> {
+  /** `field` — for `example_invalid_request`, the expected `details.field` (see the contract's `ExampleErrorCode`). */
+  async function expectExampleError(res: Answer, status: number, errorCode: string, field?: string): Promise<void> {
     expect(res.status, `${errorCode}: status`).toBe(status);
     expect(res.json).toMatchObject({ errorCode });
+    if (field !== undefined) {
+      expect((res.json as { details?: { field?: unknown } }).details?.field, `${errorCode}: details.field`).toBe(field);
+    }
     expectValid(validateSchema('ExampleError', res.json), errorCode);
     expectNoSecret(res.text, errorCode);
   }
@@ -546,7 +550,7 @@ export function defineConformanceSuite(options: ConformanceOptions): void {
       it('a body that is not JSON: 400 example_invalid_request, no platform call', async () => {
         const mark = gateway.requests.length;
         const res = await call('/api/invoices', { method: 'POST', raw: '{"externalId": ' });
-        await expectExampleError(res, 400, 'example_invalid_request');
+        await expectExampleError(res, 400, 'example_invalid_request', 'body');
         expect(res.callId, 'X-Example-Call-Id on every passthrough answer').toMatch(UUID_RE);
         expect(gateway.since(mark)).toEqual([]);
       });
@@ -554,7 +558,7 @@ export function defineConformanceSuite(options: ConformanceOptions): void {
       it('X-Client-Request-Id in a wrong format: 400 example_invalid_request, no platform call', async () => {
         const mark = gateway.requests.length;
         const res = await call('/api/account', { headers: { 'X-Client-Request-Id': 'has spaces in it' } });
-        await expectExampleError(res, 400, 'example_invalid_request');
+        await expectExampleError(res, 400, 'example_invalid_request', 'X-Client-Request-Id');
         expect(res.callId, 'X-Example-Call-Id on every passthrough answer').toMatch(UUID_RE);
         expect(gateway.since(mark)).toEqual([]);
       });
@@ -602,7 +606,7 @@ export function defineConformanceSuite(options: ConformanceOptions): void {
       });
 
       it('a bad request-log filter: 400 example_invalid_request', async () => {
-        await expectExampleError(await call('/api/request-log?status=7xx'), 400, 'example_invalid_request');
+        await expectExampleError(await call('/api/request-log?status=7xx'), 400, 'example_invalid_request', 'status');
       });
     });
 
@@ -827,7 +831,7 @@ export function defineConformanceSuite(options: ConformanceOptions): void {
             method: 'PUT',
             body: { mode: 'auto', status: 99, delayMs: 0, failNext: 0 },
           });
-          await expectExampleError(bad, 400, 'example_invalid_request');
+          await expectExampleError(bad, 400, 'example_invalid_request', 'status');
         } finally {
           await call('/api/receiver', { method: 'PUT', body: defaults });
         }
@@ -887,19 +891,21 @@ export function defineConformanceSuite(options: ConformanceOptions): void {
         }
       });
 
-      it('bad options and a bad invoice id: 400 example_invalid_request', async () => {
-        const bad = await call(`/api/invoices/${IDS.invoice}/checkout-link`, {
-          method: 'POST',
-          body: { branding: { accentColor: 'red' } },
-        });
-        await expectExampleError(bad, 400, 'example_invalid_request');
-        const long = await call(`/api/invoices/${IDS.invoice}/checkout-link`, {
-          method: 'POST',
-          body: { expiresInSeconds: 604_801 },
-        });
-        await expectExampleError(long, 400, 'example_invalid_request');
+      it('bad options and a bad invoice id: 400 example_invalid_request, details.field the path in the body', async () => {
+        const link = (body: unknown) => call(`/api/invoices/${IDS.invoice}/checkout-link`, { method: 'POST', body });
+        const code = 'example_invalid_request';
+        await expectExampleError(await link({ branding: { accentColor: 'red' } }), 400, code, 'branding.accentColor');
+        await expectExampleError(
+          await link({ branding: { logoUrl: 'http://shop.example/logo.png' } }),
+          400,
+          code,
+          'branding.logoUrl',
+        );
+        await expectExampleError(await link({ branding: { logo_url: 'x' } }), 400, code, 'branding.logo_url');
+        await expectExampleError(await link({ expiresInSeconds: 604_801 }), 400, code, 'expiresInSeconds');
+        await expectExampleError(await link({ locale: 'de' }), 400, code, 'locale');
         const upper = await call(`/api/invoices/${IDS.invoice.toUpperCase()}/checkout-link`, { method: 'POST' });
-        await expectExampleError(upper, 400, 'example_invalid_request');
+        await expectExampleError(upper, 400, code, 'invoiceId');
       });
     });
 

@@ -33,7 +33,6 @@ interface Form {
   expiresInSeconds: string;
 }
 
-const DEFAULT_TTL = 86_400;
 const TTL_PRESETS: [number, string][] = [
   [60, '1 min'],
   [3600, '1 h'],
@@ -68,16 +67,19 @@ export function linkInput(form: Form): LinkInput {
   return {
     ...(Object.keys(branding).length ? { branding } : {}),
     ...(form.locale ? { locale: form.locale } : {}),
-    // The contract types make a field with a default required: an empty field sends the default, 24 h
-    expiresInSeconds: ttl ? Number(ttl) : DEFAULT_TTL,
+    // Empty — not sent: the backend applies the default, 24 h
+    ...(ttl ? { expiresInSeconds: Number(ttl) } : {}),
   };
 }
 
-/** `400 example_invalid_request` names the field in `details.field` (`branding.logoUrl`, `locale`, …). */
+/**
+ * `400 example_invalid_request` names the field in `details.field`: its dotted path from the root of the body
+ * (`branding.logoUrl`, `locale`, …), as the contract pins it.
+ */
 function fieldOf(error: unknown): string | null {
   if (!(error instanceof ApiError) || error.errorCode !== 'example_invalid_request') return null;
   const field = (error.details as { field?: unknown } | null)?.field;
-  return typeof field === 'string' ? field.replace(/^branding\./, '') : null;
+  return typeof field === 'string' ? field : null;
 }
 
 /**
@@ -101,7 +103,7 @@ export function CheckoutPanel({
     theme: '',
     title: `Order ${invoice.externalId}`.slice(0, 100),
     locale: '',
-    expiresInSeconds: '86400',
+    expiresInSeconds: '',
   }));
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<unknown>(null);
@@ -160,13 +162,17 @@ export function CheckoutPanel({
           void build();
         }}
       >
-        <Field label="Company name" hint="In the page header, 1–64 characters" error={fieldError('companyName')}>
+        <Field
+          label="Company name"
+          hint="In the page header, 1–64 characters"
+          error={fieldError('branding.companyName')}
+        >
           {(p) => <Input {...p} value={form.companyName} onChange={(e) => set('companyName', e.target.value)} />}
         </Field>
         <Field
           label="Logo URL"
           hint="https:, up to 1024 characters; the buyer's browser loads it"
-          error={fieldError('logoUrl')}
+          error={fieldError('branding.logoUrl')}
         >
           {(p) => (
             <Input
@@ -181,7 +187,7 @@ export function CheckoutPanel({
         <Field
           label="Accent colour"
           hint="Buttons, links and the header bar, #rrggbb"
-          error={fieldError('accentColor')}
+          error={fieldError('branding.accentColor')}
         >
           {(p) => (
             <div className="flex items-center gap-2">
@@ -200,7 +206,7 @@ export function CheckoutPanel({
             </div>
           )}
         </Field>
-        <Field label="Theme" error={fieldError('theme')}>
+        <Field label="Theme" error={fieldError('branding.theme')}>
           {(p) => (
             <Select
               value={form.theme || 'none'}
@@ -218,7 +224,7 @@ export function CheckoutPanel({
             </Select>
           )}
         </Field>
-        <Field label="Order title" hint="Under the header, 1–100 characters" error={fieldError('title')}>
+        <Field label="Order title" hint="Under the header, 1–100 characters" error={fieldError('branding.title')}>
           {(p) => <Input {...p} value={form.title} onChange={(e) => set('title', e.target.value)} />}
         </Field>
         <Field label="Language" error={fieldError('locale')}>
@@ -244,6 +250,7 @@ export function CheckoutPanel({
               <Input
                 {...p}
                 inputMode="numeric"
+                placeholder="86400"
                 value={form.expiresInSeconds}
                 className="font-mono"
                 onChange={(e) => set('expiresInSeconds', e.target.value)}

@@ -325,8 +325,16 @@ export async function startReferenceBackend(env: ConformanceEnv): Promise<Starte
     if (!Number.isInteger(expires) || (expires as number) < 1 || (expires as number) > 604_800)
       throw invalid('expiresInSeconds', '1–604800');
     const branding = (input['branding'] as Record<string, string> | undefined) ?? {};
+    const unknown = Object.keys(branding).find(
+      (k) => !['companyName', 'logoUrl', 'accentColor', 'theme', 'title'].includes(k),
+    );
+    if (unknown !== undefined) throw invalid(`branding.${unknown}`, 'not supported');
     if (branding['accentColor'] !== undefined && !/^#[0-9a-fA-F]{6}$/.test(branding['accentColor']))
       throw invalid('branding.accentColor', '#rrggbb');
+    if (branding['logoUrl'] !== undefined && !branding['logoUrl'].startsWith('https://'))
+      throw invalid('branding.logoUrl', 'https');
+    if (input['locale'] !== undefined && input['locale'] !== 'ru' && input['locale'] !== 'en')
+      throw invalid('locale', 'ru or en');
     const payload: Json = { k: env.PSP_API_KEY, i: invoiceId, e: Math.floor(Date.now() / 1000) + (expires as number) };
     const b: Record<string, string> = {};
     for (const k of ['companyName', 'logoUrl', 'accentColor', 'theme', 'title'])
@@ -427,18 +435,16 @@ export async function startReferenceBackend(env: ConformanceEnv): Promise<Starte
       if (method === 'GET') return send(res, 200, receiver);
       if (method === 'PUT') {
         const s = JSON.parse(raw || '{}') as Json;
-        const ok =
-          (s['mode'] === 'auto' || s['mode'] === 'fixed') &&
-          Number.isInteger(s['status']) &&
-          (s['status'] as number) >= 200 &&
-          (s['status'] as number) <= 599 &&
-          Number.isInteger(s['delayMs']) &&
-          (s['delayMs'] as number) >= 0 &&
-          (s['delayMs'] as number) <= 30_000 &&
-          Number.isInteger(s['failNext']) &&
-          (s['failNext'] as number) >= 0 &&
-          (s['failNext'] as number) <= 100;
-        if (!ok) throw invalid('body', 'mode, status 200–599, delayMs 0–30000, failNext 0–100');
+        if (s['mode'] !== 'auto' && s['mode'] !== 'fixed') throw invalid('mode', 'auto or fixed');
+        const ranges: [string, number, number][] = [
+          ['status', 200, 599],
+          ['delayMs', 0, 30_000],
+          ['failNext', 0, 100],
+        ];
+        for (const [name, min, max] of ranges) {
+          const v = s[name];
+          if (!Number.isInteger(v) || (v as number) < min || (v as number) > max) throw invalid(name, `${min}–${max}`);
+        }
         receiver = {
           mode: s['mode'] as string,
           status: s['status'] as number,
@@ -465,7 +471,7 @@ export async function startReferenceBackend(env: ConformanceEnv): Promise<Starte
         }
         const clientRequestId = req.headers['x-client-request-id'];
         if (typeof clientRequestId === 'string' && !CLIENT_REQUEST_ID_RE.test(clientRequestId))
-          throw invalid('x-client-request-id', 'printable ASCII, 1–128');
+          throw invalid('X-Client-Request-Id', 'printable ASCII, 1–128');
         let merchantPath = route.path.replace(/^\/api\//, '/api/v1/');
         route.names.forEach((n, i) => (merchantPath = merchantPath.replace(`{${n}}`, m[i + 1] ?? '')));
         const query = (req.url ?? '').includes('?') ? (req.url ?? '').slice((req.url ?? '').indexOf('?')) : '';

@@ -21,7 +21,7 @@ export function DeliveryScreen() {
   const refresh = useRefresh();
   const delivery = useApi('getDelivery', { path: { deliveryId } });
   const webhookId = deliveryId;
-  // The receiver's copies of this delivery: X-Webhook-Id is the delivery id
+  // The receiver's copies of this delivery: the contract pins the delivery id = X-Webhook-Id (webhook-service 13.13)
   const copies = useApi('listReceivedWebhooks', { query: { webhookId, limit: 50 } });
   const redeliver = useMutation({
     mutationFn: () => call('redeliverDelivery', { path: { deliveryId } }),

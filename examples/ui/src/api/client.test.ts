@@ -1,5 +1,5 @@
 import { http, HttpResponse } from 'msw';
-import { beforeEach, describe, expect, it } from 'vitest';
+import { beforeEach, describe, expect, expectTypeOf, it } from 'vitest';
 import routes from '@psp-examples/contract/routes.json';
 import { calls, handle, server } from '../../test/msw';
 import { CALL_ID } from '../../test/fixtures';
@@ -77,6 +77,10 @@ describe('call', () => {
     });
     expect(res.data).toContain('network,asset');
     expect(res.meta.callId).toBe(CALL_ID);
+    // The type is the contract's text/csv answer; an operation without one is refused
+    expectTypeOf(res.data).toEqualTypeOf<string>();
+    // @ts-expect-error getAccount has no text/csv answer in the contract
+    expectTypeOf(callText<'getAccount'>).toBeFunction();
   });
 
   it('turns a platform error into ApiError with errorCode, details and the call id', async () => {
