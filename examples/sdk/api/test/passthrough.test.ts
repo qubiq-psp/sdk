@@ -375,6 +375,7 @@ describe('request log', () => {
       url: `${stub.url}/api/v1/invoices`,
       path: '/api/v1/invoices',
       requestBody: '{"externalId":"order-9"}',
+      requestBodyTruncated: false,
       responseBody: JSON.stringify({ id: ID }),
       responseBodyTruncated: false,
       signing: null,
@@ -413,6 +414,20 @@ describe('request log', () => {
     expect((await call('GET', `/api/request-log/${ID}`)).json).toMatchObject({ errorCode: 'example_not_found' });
     expect((await call('DELETE', '/api/request-log')).status).toBe(204);
     expect((await page('')).total).toBe(0);
+  });
+
+  it('cuts request bodies to 64 KB in the log; the platform gets the whole body', async () => {
+    stub.answer({ status: 200, body: {} });
+    const body = JSON.stringify({ pad: 'y'.repeat(100 * 1024) });
+    const res = await call('POST', '/api/payouts/quote', { body });
+    expect(stub.requests.at(-1)?.body).toBe(body);
+    const [item] = await logOf(res.headers.get('x-example-call-id') ?? '');
+    const entry = (await call('GET', `/api/request-log/${item?.id ?? ''}`)).json as {
+      requestBody: string;
+      requestBodyTruncated: boolean;
+    };
+    expect(entry.requestBodyTruncated).toBe(true);
+    expect(entry.requestBody).toBe(body.slice(0, 64 * 1024));
   });
 
   it('keeps at most APP_LOG_LIMIT entries', async () => {

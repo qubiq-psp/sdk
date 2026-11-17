@@ -9,6 +9,8 @@ import type { RequestLogEntry, RequestLogItem, RequestLogPage } from './types.ts
 
 /** Response bodies are kept up to 256 KB: a CSV statement can be large. */
 export const RESPONSE_BODY_MAX_BYTES = 256 * 1024;
+/** Request bodies up to 64 KB, the platform's own limit: a `/api` body may be up to 1 MB. */
+export const REQUEST_BODY_MAX_BYTES = 64 * 1024;
 
 const ITEM_KEYS = [
   'id',
@@ -78,7 +80,8 @@ export function toEntry(ctx: AttemptContext, attempt: PlatformAttempt): RequestL
     transportError: attempt.transportError,
     url: attempt.url,
     requestHeaders: attempt.requestHeaders,
-    requestBody: ctx.requestBody ? ctx.requestBody.toString('utf8') : null,
+    requestBody: ctx.requestBody ? ctx.requestBody.subarray(0, REQUEST_BODY_MAX_BYTES).toString('utf8') : null,
+    requestBodyTruncated: ctx.requestBody ? ctx.requestBody.length > REQUEST_BODY_MAX_BYTES : false,
     responseHeaders: res ? res.headers : null,
     responseBody: res ? res.body.subarray(0, RESPONSE_BODY_MAX_BYTES).toString('utf8') : null,
     responseBodyTruncated: res ? res.body.length > RESPONSE_BODY_MAX_BYTES : false,

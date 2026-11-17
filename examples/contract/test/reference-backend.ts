@@ -66,6 +66,7 @@ export async function startReferenceBackend(env: ConformanceEnv): Promise<Starte
       url: _u,
       requestHeaders: _a,
       requestBody: _b,
+      requestBodyTruncated: _bt,
       responseHeaders: _c,
       responseBody: _d,
       responseBodyTruncated: _e,
@@ -121,7 +122,12 @@ export async function startReferenceBackend(env: ConformanceEnv): Promise<Starte
       transportError: null,
       url: `${apiUrl}${target}`,
       requestHeaders: headers,
-      requestBody: body || null,
+      requestBody: body
+        ? Buffer.from(body)
+            .subarray(0, 64 * 1024)
+            .toString('utf8')
+        : null,
+      requestBodyTruncated: Buffer.byteLength(body) > 64 * 1024,
       responseHeaders: null,
       responseBody: null,
       responseBodyTruncated: false,

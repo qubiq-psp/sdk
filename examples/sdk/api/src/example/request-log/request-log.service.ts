@@ -14,8 +14,10 @@ import { callContext, type ApiCall } from '../call-context';
 import { ExampleError, pageParams, stringParam, uuidParam } from '../example-error';
 import type { RequestLogEntry, RequestLogItem, RequestLogPage } from './request-log.types';
 
-/** Response bodies are kept up to 256 KB. */
+/** Response bodies are kept up to 256 KB (a CSV statement can be large)… */
 const MAX_BODY_BYTES = 256 * 1024;
+/** …request bodies up to 64 KB, the platform's own limit (a `/api` body may be up to 1 MB). */
+const MAX_REQUEST_BODY_BYTES = 64 * 1024;
 const STATUS_CLASSES = ['2xx', '3xx', '4xx', '5xx', 'error'] as const;
 
 @Injectable()
@@ -59,7 +61,7 @@ export class RequestLogService {
         transportError: null,
         url: url.href,
         requestHeaders,
-        requestBody: typeof init?.body === 'string' ? init.body : null,
+        ...requestBodyOf(init?.body),
         responseHeaders: null,
         responseBody: null,
         responseBodyTruncated: false,
@@ -160,6 +162,7 @@ function toItem(entry: RequestLogEntry): RequestLogItem {
     url: _url,
     requestHeaders: _requestHeaders,
     requestBody: _requestBody,
+    requestBodyTruncated: _requestBodyTruncated,
     responseHeaders: _responseHeaders,
     responseBody: _responseBody,
     responseBodyTruncated: _responseBodyTruncated,
@@ -167,6 +170,14 @@ function toItem(entry: RequestLogEntry): RequestLogItem {
     ...item
   } = entry;
   return item;
+}
+
+/** The body the SDK sent (always a JSON string), cut to {@link MAX_REQUEST_BODY_BYTES}. */
+function requestBodyOf(body: RequestInit['body']): Pick<RequestLogEntry, 'requestBody' | 'requestBodyTruncated'> {
+  if (typeof body !== 'string') return { requestBody: null, requestBodyTruncated: false };
+  const bytes = Buffer.from(body, 'utf8');
+  if (bytes.length <= MAX_REQUEST_BODY_BYTES) return { requestBody: body, requestBodyTruncated: false };
+  return { requestBody: bytes.subarray(0, MAX_REQUEST_BODY_BYTES).toString('utf8'), requestBodyTruncated: true };
 }
 
 function statusClass(status: number | null): string {

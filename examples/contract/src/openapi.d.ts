@@ -836,8 +836,10 @@ export interface components {
             requestHeaders: {
                 [key: string]: string;
             };
-            /** @description The body bytes as sent (UTF-8); `null` — no body. */
+            /** @description The body bytes as sent (UTF-8), cut to 64 KB; `null` — no body. */
             requestBody: string | null;
+            /** @description `requestBody` is only the first 64 KB of the body sent (the platform refuses larger ones anyway). */
+            requestBodyTruncated: boolean;
             /** @description Header names in lower case. */
             responseHeaders: {
                 [key: string]: string;

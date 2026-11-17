@@ -1639,7 +1639,17 @@ components:
       allOf:
         - $ref: '#/components/schemas/RequestLogItem'
         - type: object
-          required: [url, requestHeaders, requestBody, responseHeaders, responseBody, responseBodyTruncated, signing]
+          required:
+            [
+              url,
+              requestHeaders,
+              requestBody,
+              requestBodyTruncated,
+              responseHeaders,
+              responseBody,
+              responseBodyTruncated,
+              signing,
+            ]
           properties:
             url: { type: string, format: uri }
             requestHeaders:
@@ -1648,7 +1658,10 @@ components:
               description: As sent, signature headers included (`X-Api-Key`, `X-Api-Timestamp`, `X-Api-Nonce`, `X-Api-Signature`).
             requestBody:
               type: [string, 'null']
-              description: The body bytes as sent (UTF-8); `null` — no body.
+              description: The body bytes as sent (UTF-8), cut to 64 KB; `null` — no body.
+            requestBodyTruncated:
+              type: boolean
+              description: '`requestBody` is only the first 64 KB of the body sent (the platform refuses larger ones anyway).'
             responseHeaders:
               type: [object, 'null']
               additionalProperties: { type: string }

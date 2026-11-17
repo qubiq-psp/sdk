@@ -159,6 +159,7 @@ interface LogItem {
 interface LogEntry extends LogItem {
   requestHeaders: Record<string, string>;
   requestBody: string | null;
+  requestBodyTruncated: boolean;
   responseBody: string | null;
   responseBodyTruncated: boolean;
   signing: { stringToSign: string; bodySha256: string | null } | null;
@@ -277,6 +278,7 @@ export function defineConformanceSuite(options: ConformanceOptions): void {
       expect(headers[h], `log entry request header ${h}`).toBe(last.headers[h]);
     }
     expect(entry.requestBody ?? '').toBe(last.body);
+    expect(entry.requestBodyTruncated).toBe(false);
     if (!entry.responseBodyTruncated) expect(entry.responseBody).toBe(answer.body);
     if (name === 'plain') {
       expect(entry.signing?.stringToSign, 'plain: the string it signed').toBe(last.auth.stringToSign);

@@ -109,7 +109,10 @@ export function RequestLogEntryScreen() {
                     value={headersText(e.requestHeaders)}
                     maxHeight="max-h-60"
                   />
-                  <CodeBlock label="Body" value={e.requestBody === null ? '(no body)' : prettyJson(e.requestBody)} />
+                  <CodeBlock
+                    label={e.requestBodyTruncated ? 'Body (cut to 64 KB)' : 'Body'}
+                    value={e.requestBody === null ? '(no body)' : prettyJson(e.requestBody)}
+                  />
                 </div>
               </Section>
               <Section title="Answer received">

@@ -68,6 +68,7 @@ export const requestLogEntry: S['RequestLogEntry'] = {
   requestBody: '{"externalId":"order-1"}',
   responseHeaders: { 'x-request-id': 'req-0001' },
   responseBody: '{"id":"x"}',
+  requestBodyTruncated: false,
   responseBodyTruncated: false,
   signing: { stringToSign: 'v1\nPOST\n/api/v1/invoices\n1790683170\nnonce\nabc', bodySha256: 'abc' },
 };

@@ -337,4 +337,22 @@ describe('request log', () => {
     expect(entry.responseBodyTruncated).toBe(true);
     expect(entry.responseBody).toHaveLength(256 * 1024);
   });
+
+  it('cuts request bodies to 64 KB in the log; the platform gets the whole body', async () => {
+    const { app } = await setup();
+    stub.answer(() => ({ status: 200, body: '{}' }));
+    const body = JSON.stringify({ pad: 'y'.repeat(100 * 1024) });
+    await app.inject({
+      method: 'POST',
+      url: '/api/payouts/quote',
+      headers: { 'content-type': 'application/json' },
+      payload: body,
+    });
+    expect(stub.seen.at(-1)?.body.toString('utf8')).toBe(body);
+    const id = (await app.inject({ method: 'GET', url: '/api/request-log?limit=1' })).json<RequestLogPage>().items[0]!
+      .id;
+    const entry = (await app.inject({ method: 'GET', url: `/api/request-log/${id}` })).json<RequestLogEntry>();
+    expect(entry.requestBodyTruncated).toBe(true);
+    expect(entry.requestBody).toBe(body.slice(0, 64 * 1024));
+  });
 });

@@ -246,7 +246,8 @@ other entry; the UI filters them on its side.
 
 `RequestLogEntry` (`GET /api/request-log/{entryId}`) adds `url`, `requestHeaders` (with the signature headers
 `X-Api-Key`, `X-Api-Timestamp`, `X-Api-Nonce`, `X-Api-Signature`), `requestBody`, `responseHeaders`, `responseBody`
-(cut to 256 KB, `responseBodyTruncated`) and `signing`:
+(cut to 256 KB, `responseBodyTruncated`) and `signing`. `requestBody` is cut to 64 KB (`requestBodyTruncated`) — the
+platform's own limit, and a `/api` body may be up to 1 MB; both count in `APP_LOG_MAX_BYTES`. `signing`:
 
 - plain — always `{ stringToSign, bodySha256 }`: what it signed. At `401 bad_signature` the UI compares it with
   `details.stringToSign` of the platform;
