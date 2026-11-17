@@ -7,7 +7,7 @@
     "contact": {},
     "x-generated-from": {
       "file": "packages/node/api/openapi.v1.json",
-      "sha256": "bbcea362a394f979103deee813f3122a938fc50cac59747b1f4cee32a45afedc",
+      "sha256": "16ebb8c594f48d1a1415605638d891d0a090c0dac88173f7b606753b966e5108",
       "transform": "openapi 3.1.0; nullable: true -> type [T, \"null\"] (+ null in enum) or anyOf [schema, {type: null}]; inline parameters, request bodies and 2xx schemas of operations -> components (parameters/<operationId>.<name>, requestBodies/<operationId>, schemas/<operationId>Body, schemas/<operationId>Response)"
     }
   },
@@ -1227,7 +1227,7 @@
           "body": {
             "type": "string",
             "description": "The exact bytes of the webhook body the signature covers",
-            "example": "{\"id\":\"c65065bb-9874-49d4-b44b-4930a167a5c1\",\"type\":\"invoice.paid\",…}"
+            "example": "{\"id\":\"c65065bb-9874-49d4-b44b-4930a167a5c1\",\"type\":\"invoice.paid\",\"version\":1,…}"
           },
           "deliveryAttempts": {
             "type": "array",
