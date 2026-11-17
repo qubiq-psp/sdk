@@ -6,6 +6,5 @@ export default defineConfig({
     environment: 'node',
     // The machine is shared with other psp runs: two workers are enough
     maxWorkers: 2,
-    minWorkers: 1,
   },
 });
