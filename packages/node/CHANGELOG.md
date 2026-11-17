@@ -2,7 +2,7 @@
 
 All notable changes to `@qubiq-psp/sdk` are documented here. The project follows [Semantic Versioning](https://semver.org/).
 
-## Unreleased
+## 0.3.0 — 2026-11-17
 
 ### Added
 
