@@ -937,7 +937,11 @@ export interface components {
             skewSeconds: number | null;
             /** @description The signature matches a configured secret, even if another step failed (e.g. the time window). */
             signatureValid: boolean;
-            /** @description `v1=…` computed with the current secret over `{timestamp}.{body}` (sdk — `signWebhook()`); `null` without a timestamp. */
+            /**
+             * @description `v1=…` computed with the current secret over `{timestamp}.{body}` (sdk — `signWebhook()`); `null` unless
+             *     `X-Webhook-Timestamp` is Unix seconds (1–12 digits). The secret also keys the payment-widget token, so it
+             *     never signs an arbitrary header value.
+             */
             expectedSignature: string | null;
             bodyBytes: number;
         };

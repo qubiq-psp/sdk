@@ -17,6 +17,10 @@ All notable changes to `@qubiq-psp/sdk` are documented here. The project follows
 - Typed `details` of the payout error codes: `limit_exceeded`, `invalid_address`, `own_address`, `insufficient_balance`, `network_fee_too_high`, `payout_conflict`, `network_service_rejected`, `rate_unavailable`.
 - `examples/create-payout.ts`.
 
+### Security
+
+- `signWebhook()` accepts only a Unix-seconds timestamp — 1–12 digits as a string, or a non-negative integer — and throws a `TypeError` otherwise, before the secret is used. The API secret keys other HMACs too (the payment-widget token), so signing an arbitrary string from a request header under it could produce one of those. Valid webhook timestamps and the documentation vectors are unaffected.
+
 ## 0.2.2 — 2026-11-17
 
 No code changes. The source moved to the repository [qubiq-psp/sdk](https://github.com/qubiq-psp/sdk) (`packages/node`), together with the other package and the examples; the former repository `qubiq-psp/node-sdk` becomes a read-only archive. `repository`, `homepage` and `bugs` in `package.json` point there, so npm provenance matches the repository the package is built from.

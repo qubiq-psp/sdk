@@ -892,6 +892,18 @@ export function defineConformanceSuite(options: ConformanceOptions): void {
         });
       });
 
+      it('a timestamp that is not Unix seconds: 401 bad_timestamp, nothing signed over it', async () => {
+        // The secret also keys the widget token: "psp-checkout-v1" + body would make the expected signature a token
+        const sent = await gateway.sendWebhook(hookUrl(), { headers: { 'x-webhook-timestamp': 'psp-checkout-v1' } });
+        expect(sent.status).toBe(401);
+        expect(sent.json).toMatchObject({ errorCode: 'bad_timestamp' });
+        expect(await received(sent)).toMatchObject({
+          verifyResult: 'bad_timestamp',
+          signedWith: null,
+          verify: { timestamp: null, signatureValid: false, expectedSignature: null },
+        });
+      });
+
       it('a missing signature header: 401 missing_header', async () => {
         const sent = await gateway.sendWebhook(hookUrl(), { omitHeaders: ['x-webhook-signature'] });
         expect(sent.status).toBe(401);

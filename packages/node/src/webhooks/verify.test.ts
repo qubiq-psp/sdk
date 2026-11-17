@@ -113,6 +113,18 @@ describe('signature', () => {
     expect(signWebhook(SECRET, 1790684400, new Uint8Array(TEST_BODY))).toBe(expected);
   });
 
+  it('signWebhook refuses a timestamp that is not Unix seconds (1–12 digits) before using the secret', () => {
+    for (const timestamp of ['', 'psp-checkout-v1', '1790684400.1', ' 1790684400', '-1', '1234567890123', '1e9']) {
+      expect(() => signWebhook(SECRET, timestamp, TEST_BODY), JSON.stringify(timestamp)).toThrow(TypeError);
+    }
+    for (const timestamp of [-1, 1.5, Number.NaN, Number.POSITIVE_INFINITY, 1e21, 10 ** 12]) {
+      expect(() => signWebhook(SECRET, timestamp, TEST_BODY), String(timestamp)).toThrow(TypeError);
+    }
+    expect(() => signWebhook(SECRET, null as unknown as string, TEST_BODY)).toThrow(TypeError);
+    expect(signWebhook(SECRET, 0, TEST_BODY)).toMatch(/^v1=[0-9a-f]{64}$/);
+    expect(signWebhook(SECRET, '999999999999', TEST_BODY)).toMatch(/^v1=[0-9a-f]{64}$/);
+  });
+
   it('the previous secret passes during a rotation and is reported', () => {
     const NEW = 'psp_sk_Hq3vN8xK1mT6wR4cZ9bL2fJ7dY5gA0sEp6Wt';
     const input = { body: TEST_BODY, headers: testHeaders, now: 1790684400 };

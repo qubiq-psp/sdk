@@ -4,7 +4,7 @@
 //   3. store it and answer 2xx at once (within 10 s), process after the answer.
 // The rest is example plumbing for QA: every request is logged with the details of its verification, and the answer
 // can be forced (`ReceiverSettings`) to produce retries, failed deliveries and redeliveries on purpose.
-import { randomUUID } from 'node:crypto';
+import { randomUUID, timingSafeEqual } from 'node:crypto';
 import type { IncomingHttpHeaders } from 'node:http';
 import { Inject, Injectable, Logger } from '@nestjs/common';
 import type { components } from '@psp-examples/contract/types';
@@ -201,12 +201,16 @@ export class WebhookReceiverService {
     const timestampHeader = headers['x-webhook-timestamp'];
     const timestamp =
       timestampHeader !== undefined && /^\d{1,12}$/.test(timestampHeader) ? Number(timestampHeader) : null;
-    // signatureValid and signedWith are checked on their own, so they show even when another step failed (the window)
-    const received = headers['x-webhook-signature'];
-    const signedBy = (secret: string | undefined): boolean =>
-      secret !== undefined &&
-      timestampHeader !== undefined &&
-      signWebhook(secret, timestampHeader, rawBody) === received;
+    // signatureValid and signedWith are checked on their own, so they show even when another step failed (the
+    // window). Only over a Unix-seconds timestamp: the secret also keys the payment-widget token, so it never signs
+    // an arbitrary header value (signWebhook() of the SDK refuses one, too)
+    const signable = timestamp !== null && timestampHeader !== undefined ? timestampHeader : null;
+    const received = Buffer.from(headers['x-webhook-signature'] ?? '', 'utf8');
+    const signedBy = (secret: string | undefined): boolean => {
+      if (secret === undefined || signable === null) return false;
+      const expected = Buffer.from(signWebhook(secret, signable, rawBody), 'utf8');
+      return expected.length === received.length && timingSafeEqual(expected, received);
+    };
     const signedWith = signedBy(this.config.psp.apiSecret)
       ? 'current'
       : signedBy(this.config.psp.previousApiSecret)
@@ -253,8 +257,7 @@ export class WebhookReceiverService {
         skewSeconds: timestamp === null ? null : Math.floor(now.getTime() / 1000) - timestamp,
         signatureValid: signedWith !== null,
         // signWebhook() of the SDK: what the platform should have sent, signed with the current secret
-        expectedSignature:
-          timestampHeader === undefined ? null : signWebhook(this.config.psp.apiSecret, timestampHeader, rawBody),
+        expectedSignature: signable === null ? null : signWebhook(this.config.psp.apiSecret, signable, rawBody),
         bodyBytes: rawBody.length,
       },
       responseBody: JSON.stringify(input.body),

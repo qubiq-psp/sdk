@@ -310,7 +310,9 @@ of a delivery, and a redelivery of an accepted webhook is a `duplicate`.
    step, in the SDK's words: `missing_header`, `bad_timestamp`, `timestamp_out_of_window`, `bad_signature_header`,
    `signature_mismatch` (→ `401`), `bad_body`, `id_mismatch`, `type_mismatch`, `unsupported_version` (→ `400`),
    `chain_mismatch` (→ `401`). Each entry also stores `signatureValid` (even when a later step failed),
-   `signedWith`, the clock skew and the expected `v1=` signature (sdk — `signWebhook()`).
+   `signedWith`, the clock skew and the expected `v1=` signature (sdk — `signWebhook()`) — the last three only over a
+   Unix-seconds `X-Webhook-Timestamp` (1–12 digits): the secret also keys the widget token, so it never signs an
+   arbitrary header value; signatures are compared in constant time.
 3. A valid webhook whose `X-Webhook-Id` was already accepted with `2xx` is a `duplicate`.
 4. The answer follows `ReceiverSettings`:
    - `auto` — `200 { received: true, duplicate }` on `ok`, the status above with `{ errorCode, errorMessage }` otherwise;
