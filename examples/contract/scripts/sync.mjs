@@ -2,7 +2,9 @@
 //   merchant-api.v1.json  the OpenAPI 3.1 rendition of ../../packages/node/api/openapi.v1.json (the SDK's copy of the
 //                         gateway Merchant API, OpenAPI 3.0) that openapi.yaml $refs;
 //   src/openapi.d.ts      TypeScript types of the contract (openapi-typescript);
-//   src/routes.json       the routes of the contract: operationId, method, path, x-merchant-api, x-sdk-method.
+//   src/routes.json       the routes of the contract: operationId, method, path, x-merchant-api, x-sdk-method;
+//   types/**/*.d.ts       declarations of ./conformance and ./fake-gateway (tsc -p tsconfig.types.json), for consumers
+//                         whose TypeScript settings cannot compile the sources (NestJS with module commonjs).
 // pnpm contract:check — exits 1 when any of them differs from what sync would write (run sync and review).
 //
 // The rendition changes only this (see README, "Merchant API schemas"):
@@ -11,9 +13,11 @@
 // - inline parameters, request bodies and 2xx schemas of operations -> named components:
 //   parameters/<operationId>.<name>, requestBodies/<operationId>, schemas/<operationId>Body, schemas/<operationId>Response;
 // - info.x-generated-from: the source path and its sha256.
+import { execFileSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
-import { existsSync, readFileSync, writeFileSync } from 'node:fs';
-import { dirname, resolve } from 'node:path';
+import { existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { dirname, join, relative, resolve } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import openapiTS, { astToString } from 'openapi-typescript';
 import { parse } from 'yaml';
@@ -147,6 +151,36 @@ const outputs = [
   ['src/routes.json', () => renderRoutes(readFileSync(resolve(root, 'openapi.yaml'), 'utf8'))],
 ];
 
+/** The declarations tsc writes, as { 'types/…': text }. */
+function renderDeclarations() {
+  const out = mkdtempSync(join(tmpdir(), 'psp-contract-types-'));
+  try {
+    execFileSync(resolve(root, 'node_modules/.bin/tsc'), ['-p', 'tsconfig.types.json', '--outDir', out], {
+      cwd: root,
+      stdio: 'pipe',
+    });
+    const files = {};
+    const walk = (dir) => {
+      for (const entry of readdirSync(dir, { withFileTypes: true })) {
+        const path = join(dir, entry.name);
+        if (entry.isDirectory()) walk(path);
+        else files[join('types', relative(out, path))] = readFileSync(path, 'utf8');
+      }
+    };
+    walk(out);
+    return files;
+  } finally {
+    rmSync(out, { recursive: true, force: true });
+  }
+}
+
+function listFiles(dir) {
+  if (!existsSync(dir)) return [];
+  return readdirSync(dir, { withFileTypes: true }).flatMap((e) =>
+    e.isDirectory() ? listFiles(join(dir, e.name)) : [relative(root, join(dir, e.name))],
+  );
+}
+
 if (!existsSync(source)) {
   console.error(`No ${source}: the contract needs the SDK's Merchant API copy`);
   process.exit(1);
@@ -157,12 +191,24 @@ if (check) {
     const path = resolve(root, file);
     if (!existsSync(path) || readFileSync(path, 'utf8') !== (await render())) stale.push(file);
   }
+  const declarations = renderDeclarations();
+  const present = listFiles(resolve(root, 'types')).sort();
+  if (JSON.stringify(present) !== JSON.stringify(Object.keys(declarations).sort())) stale.push('types/ (files)');
+  for (const [file, text] of Object.entries(declarations)) {
+    const path = resolve(root, file);
+    if (!existsSync(path) || readFileSync(path, 'utf8') !== text) stale.push(file);
+  }
   if (stale.length) {
     console.error(`Stale: ${stale.join(', ')} — run pnpm contract:sync and review the diff`);
     process.exit(1);
   }
-  console.log(`contract: ${outputs.map(([f]) => f).join(', ')} up to date with ${SOURCE} and openapi.yaml`);
+  console.log(`contract: ${outputs.map(([f]) => f).join(', ')}, types/ up to date with ${SOURCE} and openapi.yaml`);
 } else {
   for (const [file, render] of outputs) writeFileSync(resolve(root, file), await render());
-  console.log(`contract: wrote ${outputs.map(([f]) => f).join(', ')}`);
+  rmSync(resolve(root, 'types'), { recursive: true, force: true });
+  for (const [file, text] of Object.entries(renderDeclarations())) {
+    mkdirSync(dirname(resolve(root, file)), { recursive: true });
+    writeFileSync(resolve(root, file), text);
+  }
+  console.log(`contract: wrote ${outputs.map(([f]) => f).join(', ')}, types/`);
 }

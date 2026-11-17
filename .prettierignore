@@ -6,3 +6,4 @@ docs/import/commit-maps/
 examples/contract/merchant-api.v1.json
 examples/contract/src/openapi.d.ts
 examples/contract/src/routes.json
+examples/contract/types/

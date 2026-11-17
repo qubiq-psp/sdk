@@ -671,8 +671,10 @@ export interface components {
          *       outside `^[\x21-\x7E]{1,128}$`, a path id that is empty, `.` or `..`, bad widget-link options, bad receiver settings or log
          *       filters. `details`: `{ field, message }`.
          *     - `example_not_found` (404) — an unknown route, request-log entry or received webhook.
-         *     - `example_upstream_timeout` (504) — the platform did not answer in time. `details`: `{ timeoutMs }`.
-         *     - `example_upstream_unreachable` (502) — no connection, DNS or TLS failure. `details`: `{ cause }`.
+         *     - `example_upstream_timeout` (504) — the platform did not answer within `APP_UPSTREAM_TIMEOUT_MS`. `details`:
+         *       `{ timeoutMs }`.
+         *     - `example_upstream_unreachable` (502) — no answer at all: connection refused or closed before the answer, DNS
+         *       or TLS failure. `details`: `{ cause }`.
          *     - `example_upstream_bad_response` (502) — an answer that is not the platform's: a redirect, a non-JSON error
          *       body, an empty success body. `details`: `{ status, requestId, bodyPreview }`.
          *     - `example_internal_error` (500) — a bug in the backend.
@@ -696,7 +698,7 @@ export interface components {
             /** @description Version of `@qubiq-psp/sdk` (sdk); `null` (plain). */
             sdkVersion: string | null;
             /**
-             * @description By the key prefix. Deployed examples are always `testnet`; a backend refuses to start with `psp_pk_live_`.
+             * @description By the key prefix. Deployed examples are always `testnet`; with `APP_TESTNET_ONLY=true` a backend refuses to start with `psp_pk_live_`.
              * @enum {string}
              */
             net: "testnet" | "mainnet";
@@ -720,7 +722,7 @@ export interface components {
             checkoutUrl: string;
             /**
              * Format: uri
-             * @description `{PUBLIC_URL}/webhooks/psp` — the receiver of this deployment, to set with `PUT /api/webhook`; `null` when `PUBLIC_URL` is not set.
+             * @description `{APP_PUBLIC_URL}/webhooks/psp` — the receiver of this deployment, to set with `PUT /api/webhook`; `null` when `APP_PUBLIC_URL` is not set.
              */
             webhookUrl: string | null;
             /** Format: date-time */

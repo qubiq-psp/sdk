@@ -1,0 +1,13 @@
+{
+  // Declarations of ./conformance and ./fake-gateway for consumers whose TypeScript settings cannot compile the
+  // sources (e.g. NestJS with `module: commonjs`). Written to types/ by `pnpm contract:sync`.
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "noEmit": false,
+    "declaration": true,
+    "emitDeclarationOnly": true,
+    "rootDir": "src",
+    "outDir": "types"
+  },
+  "include": ["src/conformance", "src/fake-gateway", "src/internal"]
+}

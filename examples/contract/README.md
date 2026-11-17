@@ -16,8 +16,11 @@ merchant-facing feature of the platform through these deployed examples.
 | [`merchant-api.v1.json`](merchant-api.v1.json) | Generated: the Merchant API schemas the contract `$ref`s, an OpenAPI 3.1 rendition of the vendored copy `packages/node/api/openapi.v1.json` (see [Merchant API schemas](#merchant-api-schemas)) |
 | [`src/openapi.d.ts`](src/openapi.d.ts)         | Generated: TypeScript types of the contract (openapi-typescript)                                                                                                                                |
 | [`src/routes.json`](src/routes.json)           | Generated: every route — `operationId`, `method`, `path`, `merchantApi`, `sdkMethod`, `extra`                                                                                                   |
-| [`scripts/sync.mjs`](scripts/sync.mjs)         | Writes the three generated files; `--check` fails when one is stale                                                                                                                             |
-| [`test/`](test)                                | The static coverage tests (see [Coverage](#coverage))                                                                                                                                           |
+| [`src/conformance/`](src/conformance)          | The conformance suite every backend runs (see [Conformance suite](#conformance-suite))                                                                                                          |
+| [`src/fake-gateway/`](src/fake-gateway)        | The fake Merchant API the suite runs against; also for the backends' own tests                                                                                                                  |
+| [`types/`](types)                              | Generated: declarations of `./conformance` and `./fake-gateway` for consumers that cannot compile the sources                                                                                   |
+| [`scripts/sync.mjs`](scripts/sync.mjs)         | Writes the generated files; `--check` fails when one is stale                                                                                                                                   |
+| [`test/`](test)                                | The static coverage tests, the fake gateway's self-tests, and the suite run against a minimal reference backend (`test/reference-backend.ts`)                                                   |
 
 ## Package
 
@@ -36,41 +39,49 @@ type CreateInvoiceBody = operations['createInvoice']['requestBody']['content']['
 `./types` is types only (`src/openapi.d.ts`), so it costs nothing at run time; it resolves through `exports` (Vite,
 `moduleResolution` `bundler`/`node16`) and through `typesVersions` (NestJS with the classic `node` resolution).
 `./routes.json` suits a typed fetch client, the sdk backend's dispatch table and tests; `./openapi.yaml` and
-`./merchant-api.v1.json` are exported for contract tests and Swagger UI.
+`./merchant-api.v1.json` are exported for contract tests and Swagger UI. `./conformance` and `./fake-gateway` are
+TypeScript sources (ESM) that vitest in a consumer runs as they are, with declarations in `types/` for the consumer's
+`tsc` (any `moduleResolution`, `module: commonjs` too).
 
-| Script                | What it does                                                                                                                                                                                                             |
-| --------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| `pnpm contract:sync`  | Regenerates `merchant-api.v1.json` from `../../packages/node/api/openapi.v1.json`, then `src/openapi.d.ts` and `src/routes.json` from `openapi.yaml`. Run it after `api:sync` of the SDK or after editing `openapi.yaml` |
-| `pnpm contract:check` | Fails when any generated file differs byte for byte from what `contract:sync` would write                                                                                                                                |
-| `pnpm lint`           | `redocly lint` of `openapi.yaml` (recommended rules, `redocly.yaml`)                                                                                                                                                     |
-| `pnpm typecheck`      | `tsc` over the generated types and the tests                                                                                                                                                                             |
-| `pnpm test`           | vitest: the coverage tests                                                                                                                                                                                               |
-| `pnpm ci`             | All of the above; the root `pnpm ci` runs it                                                                                                                                                                             |
+| Script                | What it does                                                                                                                                                                                                                                    |
+| --------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `pnpm contract:sync`  | Regenerates `merchant-api.v1.json` from `../../packages/node/api/openapi.v1.json`, then `src/openapi.d.ts` and `src/routes.json` from `openapi.yaml`, then `types/`. Run it after `api:sync` of the SDK, after editing `openapi.yaml` or `src/` |
+| `pnpm contract:check` | Fails when any generated file differs byte for byte from what `contract:sync` would write                                                                                                                                                       |
+| `pnpm lint`           | `redocly lint` of `openapi.yaml` (recommended rules, `redocly.yaml`)                                                                                                                                                                            |
+| `pnpm typecheck`      | `tsc` over the generated types and the tests                                                                                                                                                                                                    |
+| `pnpm test`           | vitest: the coverage tests, the fake gateway's self-tests, the suite against the reference backend                                                                                                                                              |
+| `pnpm ci`             | All of the above; the root `pnpm ci` runs it                                                                                                                                                                                                    |
 
 ## Ground rules
 
 - **One merchant per deployment.** The API URL, key and secret come from the backend's environment; the UI never sees
-  the secret. Testnet only: a backend refuses to start with a `psp_pk_live_` key.
+  the secret. Testnet only: with `APP_TESTNET_ONLY=true` (set in every deployment) a backend refuses to start with a
+  `psp_pk_live_` key.
 - **Same origin.** The UI calls relative URLs. nginx serves the UI and routes `/api/*` and `/webhooks/*` to the backend.
 - **Access** is nginx basic auth in front of everything except `POST /webhooks/psp`, which the platform must reach
   without credentials. Authentication is not part of the contract. A passthrough `401` from the platform has no
   `WWW-Authenticate` header, so it does not trigger the browser's basic-auth prompt; backends must not add one.
 - **JSON** everywhere, except `text/csv` of the statement and `text/event-stream` of `/api/stream`.
-- **Timeouts.** The platform answers any request within 180 s (gateway docs 13.10), so backends wait up to 180 s per
-  attempt and nginx `proxy_read_timeout` on `/api/` must be longer. `/api/stream` needs `proxy_buffering off`.
+- **Timeouts.** The platform answers any request within 180 s (gateway docs 13.10), so backends wait up to
+  `APP_UPSTREAM_TIMEOUT_MS` (default 180 000) per attempt and nginx `proxy_read_timeout` on `/api/` must be longer.
+  `/api/stream` needs `proxy_buffering off`.
+- **No calls of its own.** A backend calls the platform only to serve a contract request — nothing at start-up, no
+  background polling — so every request-log entry belongs to a `callId`.
 
 ## Environment (both backends)
 
-| Variable                  | Required | What                                                                                |
-| ------------------------- | -------- | ----------------------------------------------------------------------------------- |
-| `PSP_API_URL`             | yes      | Merchant API base URL (testnet)                                                     |
-| `PSP_API_KEY`             | yes      | `psp_pk_test_…`; `psp_pk_live_…` — the backend refuses to start                     |
-| `PSP_API_SECRET`          | yes      | `psp_sk_test_…`                                                                     |
-| `PSP_API_PREVIOUS_SECRET` | no       | The previous secret during a rotation; the receiver accepts webhooks signed with it |
-| `PSP_CHECKOUT_URL`        | yes      | Origin of the payment page, e.g. `https://pay.psp.qubiq.cc`                         |
-| `PUBLIC_URL`              | no       | Public URL of this deployment; gives `webhookUrl` in `/api/config`                  |
+| Variable                  | Required | What                                                                                   |
+| ------------------------- | -------- | -------------------------------------------------------------------------------------- |
+| `PSP_API_URL`             | yes      | Merchant API base URL (testnet)                                                        |
+| `PSP_API_KEY`             | yes      | `psp_pk_test_…`; `psp_pk_live_…` — refused at start when `APP_TESTNET_ONLY=true`       |
+| `PSP_API_SECRET`          | yes      | `psp_sk_test_…`                                                                        |
+| `PSP_API_PREVIOUS_SECRET` | no       | The previous secret during a rotation; the receiver accepts webhooks signed with it    |
+| `PSP_CHECKOUT_URL`        | yes      | Origin of the payment page, e.g. `https://pay.psp.qubiq.cc`                            |
+| `APP_PUBLIC_URL`          | no       | Public URL of this deployment; gives `webhookUrl` in `/api/config`                     |
+| `APP_TESTNET_ONLY`        | no       | `true` — refuse to start with a `psp_pk_live_` key. Every deployment sets it           |
+| `APP_UPSTREAM_TIMEOUT_MS` | no       | Timeout of one platform attempt, ms; default 180 000 (the conformance suite sets 1500) |
 
-The names are the ones `@qubiq-psp/sdk` reads itself.
+The `PSP_*` names are the ones `@qubiq-psp/sdk` reads itself; `APP_*` are the examples' own.
 
 ## Routes
 
@@ -189,7 +200,7 @@ Every error body has the platform's shape `{ errorCode, errorMessage, details }`
 | `example_invalid_request`       | 400    | Refused before any platform call (see above); bad widget-link options; bad receiver settings or log filters | `{ field, message }`                 |
 | `example_not_found`             | 404    | Unknown route, request-log entry or received webhook                                                        | `null`                               |
 | `example_upstream_timeout`      | 504    | No answer from the platform in time                                                                         | `{ timeoutMs }`                      |
-| `example_upstream_unreachable`  | 502    | No connection, DNS or TLS failure                                                                           | `{ cause }`                          |
+| `example_upstream_unreachable`  | 502    | No answer at all: connection refused or closed before the answer, DNS or TLS failure                        | `{ cause }`                          |
 | `example_upstream_bad_response` | 502    | An answer that is not the platform's: a redirect, a non-JSON error body, an empty 2xx body                  | `{ status, requestId, bodyPreview }` |
 | `example_internal_error`        | 500    | A bug in the backend                                                                                        | `null`                               |
 
@@ -320,10 +331,8 @@ the copy declares the `V1Statement` object for `text/csv` too; the contract decl
      and media types, `4XX` and `5XX`; every `$ref` resolves; the rendition has the same operations as the copy.
    - `sdk-methods.test.ts` — every passthrough route has a distinct `x-sdk-method`, and calling that method of the SDK
      (from `packages/node/src`, against a stub `fetch`) sends exactly the Merchant API method and path of the route.
-2. **Backends** (with the backends, later) — the same test suite runs against each backend with a fake gateway (`packages/node/test/fake-gateway.ts`
-   is a start): it calls every contract route, then reads `GET /api/request-log` and asserts that the `operationId`s
-   of the entries cover every operationId of the copy, that each passthrough response carries `X-Example-Call-Id`
-   matching a `callId`, and that statuses, bodies and the passed-through headers equal what the fake gateway sent.
+2. **Backends** — every backend runs the [conformance suite](#conformance-suite); its last test reads the whole
+   request log and fails unless the `operationId`s of the entries cover all 27 operations of the copy.
 
 ## What both backends guarantee
 
@@ -338,7 +347,97 @@ the copy declares the `V1Statement` object for `text/csv` too; the contract decl
 - [ ] Never expose the secret or any part of it: not in `/api/config`, not in the logs, not in errors.
 - [ ] Accept webhooks signed with `PSP_API_PREVIOUS_SECRET` when it is set (sdk: the SDK reads the variable itself;
       plain: checks both secrets) and report `signedWith: "previous"`.
-- [ ] Refuse to start with a `psp_pk_live_` key.
+- [ ] Refuse to start with a `psp_pk_live_` key when `APP_TESTNET_ONLY=true`.
+- [ ] No platform calls except to serve a contract request.
+
+All of this is checked by the conformance suite — see the next section.
+
+## Conformance suite
+
+`@psp-examples/contract/conformance` is the single definition of "implements the contract". A backend's test file
+starts the backend against a fake Merchant API and runs the suite:
+
+```ts
+// examples/<plain|sdk>/api/test/conformance.test.ts
+import { describe, it } from 'vitest';
+import {
+  defineConformanceSuite,
+  expectStartRefusesLiveKey,
+  type ConformanceEnv,
+} from '@psp-examples/contract/conformance';
+import { startServer } from '../src/server'; // your own: builds the app from an env object and listens on port 0
+
+async function start(env: ConformanceEnv) {
+  const app = await startServer({ env, port: 0, host: '127.0.0.1' }); // throws on a live key with APP_TESTNET_ONLY=true
+  return { baseUrl: app.url, stop: () => app.close() };
+}
+
+defineConformanceSuite({ name: 'plain', start }); // or 'sdk'
+
+describe('testnet guard', () => {
+  it('refuses to start with a psp_pk_live_ key', () => expectStartRefusesLiveKey(start));
+});
+```
+
+- `start(env)` gets the whole environment as an object (`PSP_API_URL` — the fake gateway, `PSP_API_KEY`,
+  `PSP_API_SECRET`, `PSP_API_PREVIOUS_SECRET`, `PSP_CHECKOUT_URL`, `APP_PUBLIC_URL`, `APP_TESTNET_ONLY=true`,
+  `APP_UPSTREAM_TIMEOUT_MS=1500`) and must use it instead of `process.env`, so that two instances can run in one
+  process. It resolves when the backend listens and rejects when it refuses to start.
+- The suite starts its own fake gateway, the backend once, and stops both at the end. It makes the requests in
+  order (one file, sequential tests), takes about 4 s, and needs the backend's state fresh at start.
+- Vitest settings: nothing special; the package's own run uses `maxWorkers: 2`.
+
+What the suite checks (each answer body is also validated against the contract schemas with ajv, JSON Schema 2020-12):
+
+| Area                  | Checks                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 |
+| --------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| Start                 | No platform calls before the first contract request; `DELETE /api/request-log` empties the log                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                         |
+| `/api/config`         | Schema; `backend` = the suite's `name`, `net: testnet`, `keyId`, `checkoutUrl`, `webhookUrl` = `{APP_PUBLIC_URL}/webhooks/psp`, `previousSecretSet`, `sdkVersion` (sdk: a string, plain: `null`); no 6-character piece of the secret anywhere in the JSON                                                                                                                                                                                                                                                                                                                                              |
+| 27 passthrough routes | One call each: the fake gateway saw a correctly signed request of that operation with the method, path, every query parameter (as pairs) and the JSON body sent to the backend; status, body (JSON-equal; CSV byte for byte) and `X-Request-Id`, `X-Client-Request-Id`, `X-Api-Key-Deprecated`, `Retry-After` equal the platform's last answer; `X-Example-Call-Id`; `X-Example-Source` and `X-Example-Call-Id` not forwarded                                                                                                                                                                          |
+| Passthrough details   | CSV statement; `createInvoice` 201 → 200 (idempotent repeat) → 409 `invoice_conflict` with `details.invoiceId`; `createPayout` 201 → 200; `cancelInvoice` without a body sends none; `setWebhookUrl` 202; `X-Client-Request-Id` forwarded, echoed, logged; `X-Api-Key-Deprecated`; `X-Example-Source: poll` → `source: poll`, `?source=ui` hides it; an unknown query parameter and an unknown body field are forwarded and the platform's `400 invalid_schema` comes back                                                                                                                             |
+| Platform errors       | `404`, `401 api_auth_failed` (no `WWW-Authenticate`), `429` with `Retry-After`, `503 maintenance`, `409 payout_conflict` — unchanged; a call the sdk retries (persistent `429` with `Retry-After: 0`): every attempt logged under one `callId`, the last answer passed through; plain makes exactly one attempt                                                                                                                                                                                                                                                                                        |
+| Request log           | Per call: one entry per platform attempt with `callId`, `source`, `operationId`, `sdkMethod` (= `x-sdk-method` for sdk, `null` for plain), `attempt` 1…n, `method`, `path` as sent, `status`, `errorCode`, `requestId`, `clientRequestId`, `apiKeyDeprecatedUntil`; the entry's signature headers and bodies equal what the gateway got; plain: `signing.stringToSign` equals the gateway's string; sdk: `signing` null (except at a `401 api_auth_failed`); no secret; filters `operationId`, `status`, `source`, `callId`, pages                                                                     |
+| Own errors            | Not-JSON body and bad `X-Client-Request-Id` → `400 example_invalid_request` without a platform call; a slow platform → `504 example_upstream_timeout` (`details.timeoutMs`), a closed connection → `502 example_upstream_unreachable`, an HTML `502` → `502 example_upstream_bad_response` (`details.status`) — each with `X-Example-Call-Id` and its log entry (`transportError` `timeout`/`network`, or the status); unknown route, log entry, received webhook → `404 example_not_found`; a bad log filter → `400`                                                                                  |
+| SSE                   | `ready` (with `backend`), a `request` event for a call (`id:` = entry id, also for `poll` calls), a `webhook` event for a received webhook; schemas                                                                                                                                                                                                                                                                                                                                                                                                                                                    |
+| Receiver              | Valid → `200 {received: true, duplicate: false}`, logged `ok`/`current` with the raw body, `expectedSignature`, invoice fields; same `X-Webhook-Id` again → `duplicate: true`; another secret → `401 signature_mismatch`; 10 min old → `401 timestamp_out_of_window` with `signatureValid: true`; previous secret → `200`, `signedWith: previous`; no signature → `401 missing_header`; body id ≠ header → `400 id_mismatch`; `chain: mainnet` → `401 chain_mismatch`; `/api/receiver` defaults, `fixed`, `failNext` counting down, `delayMs`, bad settings → `400`; `?result=failed`; `DELETE` clears |
+| Widget link           | `url` = `{PSP_CHECKOUT_URL}/#{token}`; the token verifies with the secret (gateway 20.2, the verifier is tested on the 20.4 vectors) with `k`, `i`, `b`, `l`, `e` = now + `expiresInSeconds`, `expiresAt` = `e`; defaults 24 h without `b`/`l`; no platform call; bad branding, `expiresInSeconds` > 604 800, an upper-case id → `400 example_invalid_request`                                                                                                                                                                                                                                         |
+| Coverage              | The request log holds all 27 operationIds; every platform request was correctly signed                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 |
+
+Where the contract leaves a choice to the backend, the suite checks only the guarantee: the number of attempts for
+sdk (at least one, all logged), header name case in `requestHeaders`, key order in JSON, the text of `errorMessage`.
+
+### Fake gateway
+
+`@psp-examples/contract/fake-gateway` is usable on its own (e.g. in a backend's unit tests or for running the UI
+locally):
+
+```ts
+import { startFakeGateway, TEST_KEY, TEST_SECRET } from '@psp-examples/contract/fake-gateway';
+
+const gateway = await startFakeGateway(); // 127.0.0.1, a free port; gateway.url is PSP_API_URL
+gateway.injectError('createInvoice', 'amount_out_of_range'); // the documented example of the code
+gateway.inject('getAccount', { status: 200, json: {...}, headers: { 'X-Api-Key-Deprecated': '…' } });
+gateway.inject('sendTestWebhook', { delayMs: 5000 }); // or { destroy: true }, { status: 502, text: '<html>' }
+gateway.inject('listNetworks', { status: 429, json: {...}, headers: { 'Retry-After': '0' } }, { times: 'always' });
+const sent = await gateway.sendWebhook('http://127.0.0.1:3000/webhooks/psp', { type: 'invoice.paid' });
+// options: id (repeat for a duplicate), secret (TEST_PREVIOUS_SECRET, a wrong one), timestamp (old), signature,
+// omitHeaders, headers, fields (e.g. { chain: 'mainnet' }), body
+gateway.requests; // every request: operationId, target, headers, body, auth {ok, reason, stringToSign}, response
+await gateway.close();
+```
+
+- Signature: gateway 13.4 steps 5–9 in order (`missing_header`, `malformed_header`, `timestamp_out_of_window` ±300 s,
+  `unknown_key`, `bad_signature` with `stringToSign`, `nonce_reused`) → `401 api_auth_failed`. Injections apply only
+  to correctly signed requests.
+- Then step 12: an unknown query parameter or body field, a missing required field, a bad `X-Client-Request-Id` →
+  `400 invalid_schema {fields}`.
+- Answers: the documented example of each operation from `merchant-api.v1.json` (valid by its schema — tested), with
+  the path id put in; `createInvoice`/`createPayout` keep objects by `externalId` (201, 200, 409 `*_conflict`); the
+  statement with `format=csv` is the documented `text/csv` example. Every answer has `X-Request-Id`, echoes a valid
+  `X-Client-Request-Id` and `Cache-Control: no-store`.
+- Test data: `TEST_KEY`, `TEST_SECRET` (the made-up docs secret with the testnet prefix), `TEST_PREVIOUS_SECRET`,
+  `LIVE_KEY`/`LIVE_SECRET`, `TEST_MERCHANT_ID`, `TEST_INVOICE_ID`; helpers `signApiRequest`, `signWebhook`,
+  `webhookBody`, `sendWebhook`, `verifyCheckoutToken`.
 
 ## Not in the contract
 
