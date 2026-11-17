@@ -2,9 +2,9 @@
 
 All notable changes to `@qubiq-psp/sdk` are documented here. The project follows [Semantic Versioning](https://semver.org/).
 
-## Unreleased
+## 0.4.0 — 2026-11-17
 
-To be released as **0.4.0**: the narrowed unions below can stop TypeScript code from compiling, and while the SDK is `0.x` a minor version is where a change that can break a build goes.
+A minor version with a breaking change, because the narrowed unions below can stop TypeScript code from compiling, and while the SDK is `0.x` a minor version is where a change that can break a build goes.
 
 ### Breaking
 

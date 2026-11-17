@@ -1079,7 +1079,7 @@ export interface components {
             updatedAt: string;
             /**
              * @description The exact bytes of the webhook body the signature covers
-             * @example {"id":"c65065bb-9874-49d4-b44b-4930a167a5c1","type":"invoice.paid",…}
+             * @example {"id":"c65065bb-9874-49d4-b44b-4930a167a5c1","type":"invoice.paid","version":1,…}
              */
             body: string;
             deliveryAttempts: components["schemas"]["V1DeliveryAttempt"][];
