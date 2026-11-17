@@ -2,18 +2,50 @@
 
 The HTTP contract between the one example UI (`examples/ui`) and the two example backends:
 
-| Backend | What it shows |
-|---|---|
+| Backend                                   | What it shows                                                                  |
+| ----------------------------------------- | ------------------------------------------------------------------------------ |
 | `examples/plain/api` (`backend: "plain"`) | Signing Merchant API requests, widget links and webhook checks by hand, no SDK |
-| `examples/sdk/api` (`backend: "sdk"`) | The same with `@qubiq-psp/sdk` (NestJS) |
+| `examples/sdk/api` (`backend: "sdk"`)     | The same with `@qubiq-psp/sdk` (NestJS)                                        |
 
 The UI talks to a backend through this contract only, so the same UI build works with either backend. QA tests every
 merchant-facing feature of the platform through these deployed examples.
 
-| File | What it is |
-|---|---|
-| [`openapi.yaml`](openapi.yaml) | The contract, OpenAPI 3.1 |
-| [`merchant-api.v1.json`](merchant-api.v1.json) | The Merchant API schemas the contract `$ref`s: a generated OpenAPI 3.1 rendition of the vendored copy `packages/node/api/openapi.v1.json` (see [Merchant API schemas](#merchant-api-schemas)) |
+| File                                           | What it is                                                                                                                                                                                      |
+| ---------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| [`openapi.yaml`](openapi.yaml)                 | The contract, OpenAPI 3.1                                                                                                                                                                       |
+| [`merchant-api.v1.json`](merchant-api.v1.json) | Generated: the Merchant API schemas the contract `$ref`s, an OpenAPI 3.1 rendition of the vendored copy `packages/node/api/openapi.v1.json` (see [Merchant API schemas](#merchant-api-schemas)) |
+| [`src/openapi.d.ts`](src/openapi.d.ts)         | Generated: TypeScript types of the contract (openapi-typescript)                                                                                                                                |
+| [`src/routes.json`](src/routes.json)           | Generated: every route — `operationId`, `method`, `path`, `merchantApi`, `sdkMethod`, `extra`                                                                                                   |
+| [`scripts/sync.mjs`](scripts/sync.mjs)         | Writes the three generated files; `--check` fails when one is stale                                                                                                                             |
+| [`test/`](test)                                | The static coverage tests (see [Coverage](#coverage))                                                                                                                                           |
+
+## Package
+
+`@psp-examples/contract` is a private workspace package with no build step. The UI and the backends add
+`"@psp-examples/contract": "workspace:*"` and import:
+
+```ts
+import type { components, operations, paths } from '@psp-examples/contract/types';
+import routes from '@psp-examples/contract/routes.json' with { type: 'json' };
+
+type Config = components['schemas']['Config'];
+type Invoice = components['schemas']['V1Invoice']; // Merchant API schemas come along
+type CreateInvoiceBody = operations['createInvoice']['requestBody']['content']['application/json'];
+```
+
+`./types` is types only (`src/openapi.d.ts`), so it costs nothing at run time; it resolves through `exports` (Vite,
+`moduleResolution` `bundler`/`node16`) and through `typesVersions` (NestJS with the classic `node` resolution).
+`./routes.json` suits a typed fetch client, the sdk backend's dispatch table and tests; `./openapi.yaml` and
+`./merchant-api.v1.json` are exported for contract tests and Swagger UI.
+
+| Script                | What it does                                                                                                                                                                                                             |
+| --------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `pnpm contract:sync`  | Regenerates `merchant-api.v1.json` from `../../packages/node/api/openapi.v1.json`, then `src/openapi.d.ts` and `src/routes.json` from `openapi.yaml`. Run it after `api:sync` of the SDK or after editing `openapi.yaml` |
+| `pnpm contract:check` | Fails when any generated file differs byte for byte from what `contract:sync` would write                                                                                                                                |
+| `pnpm lint`           | `redocly lint` of `openapi.yaml` (recommended rules, `redocly.yaml`)                                                                                                                                                     |
+| `pnpm typecheck`      | `tsc` over the generated types and the tests                                                                                                                                                                             |
+| `pnpm test`           | vitest: the coverage tests                                                                                                                                                                                               |
+| `pnpm ci`             | All of the above; the root `pnpm ci` runs it                                                                                                                                                                             |
 
 ## Ground rules
 
@@ -29,14 +61,14 @@ merchant-facing feature of the platform through these deployed examples.
 
 ## Environment (both backends)
 
-| Variable | Required | What |
-|---|---|---|
-| `PSP_API_URL` | yes | Merchant API base URL (testnet) |
-| `PSP_API_KEY` | yes | `psp_pk_test_…`; `psp_pk_live_…` — the backend refuses to start |
-| `PSP_API_SECRET` | yes | `psp_sk_test_…` |
-| `PSP_API_PREVIOUS_SECRET` | no | The previous secret during a rotation; the receiver accepts webhooks signed with it |
-| `PSP_CHECKOUT_URL` | yes | Origin of the payment page, e.g. `https://pay.psp.qubiq.cc` |
-| `PUBLIC_URL` | no | Public URL of this deployment; gives `webhookUrl` in `/api/config` |
+| Variable                  | Required | What                                                                                |
+| ------------------------- | -------- | ----------------------------------------------------------------------------------- |
+| `PSP_API_URL`             | yes      | Merchant API base URL (testnet)                                                     |
+| `PSP_API_KEY`             | yes      | `psp_pk_test_…`; `psp_pk_live_…` — the backend refuses to start                     |
+| `PSP_API_SECRET`          | yes      | `psp_sk_test_…`                                                                     |
+| `PSP_API_PREVIOUS_SECRET` | no       | The previous secret during a rotation; the receiver accepts webhooks signed with it |
+| `PSP_CHECKOUT_URL`        | yes      | Origin of the payment page, e.g. `https://pay.psp.qubiq.cc`                         |
+| `PUBLIC_URL`              | no       | Public URL of this deployment; gives `webhookUrl` in `/api/config`                  |
 
 The names are the ones `@qubiq-psp/sdk` reads itself.
 
@@ -45,54 +77,55 @@ The names are the ones `@qubiq-psp/sdk` reads itself.
 ### Passthrough — one route per Merchant API operation
 
 `/api/v1/<path>` of the Merchant API is `/api/<path>` here, with the same method. The contract `operationId` equals the
-Merchant API `operationId`, and `x-merchant-api` names it explicitly.
+Merchant API `operationId`, `x-merchant-api` names it explicitly, and `x-sdk-method` names the `@qubiq-psp/sdk` method
+the sdk backend calls for it (and reports as `sdkMethod` in the request log).
 
-| Area | Contract route | Merchant API operation |
-|---|---|---|
-| Account | `GET /api/account` | `getAccount` |
-| Invoices | `POST /api/invoices` | `createInvoice` |
-| | `GET /api/invoices` | `listInvoices` |
-| | `GET /api/invoices/{invoiceId}` | `getInvoice` |
-| | `GET /api/invoices/{invoiceId}/events` | `listInvoiceEvents` |
-| | `POST /api/invoices/{invoiceId}/cancel` | `cancelInvoice` |
-| Balances and operations | `GET /api/balances` | `getMerchantBalances` |
-| | `GET /api/operations` | `listMerchantOperations` |
-| | `GET /api/operations/summary` | `getMerchantOperationsSummary` |
-| | `GET /api/operations/statement` (`format=csv` — CSV) | `getMerchantOperationsStatement` |
-| | `GET /api/operations/{operationId}` | `getMerchantOperation` |
-| Deposits | `GET /api/deposits` | `listMerchantDeposits` |
-| | `GET /api/deposits/{depositId}` | `getMerchantDeposit` |
-| Payouts | `POST /api/payouts/quote` | `quotePayout` |
-| | `POST /api/payouts` | `createPayout` |
-| | `GET /api/payouts` | `listPayouts` |
-| | `GET /api/payouts/{payoutId}` | `getPayout` |
-| | `POST /api/payouts/{payoutId}/cancel` | `cancelPayout` |
-| Networks and tariff | `GET /api/networks` | `listNetworks` |
-| | `GET /api/tariff` | `getMerchantTariff` |
-| Webhook settings | `GET /api/webhook` | `getWebhookSettings` |
-| | `PUT /api/webhook` | `setWebhookUrl` |
-| | `DELETE /api/webhook` | `removeWebhookUrl` |
-| | `POST /api/webhook/test` | `sendTestWebhook` |
-| | `GET /api/webhook/deliveries` | `listDeliveries` |
-| | `GET /api/webhook/deliveries/{deliveryId}` | `getDelivery` |
-| | `POST /api/webhook/deliveries/{deliveryId}/redeliver` | `redeliverDelivery` |
+| Area                    | Contract route                                        | Merchant API operation           | `x-sdk-method`                     |
+| ----------------------- | ----------------------------------------------------- | -------------------------------- | ---------------------------------- |
+| Account                 | `GET /api/account`                                    | `getAccount`                     | `psp.account.get`                  |
+| Invoices                | `POST /api/invoices`                                  | `createInvoice`                  | `psp.invoices.create`              |
+|                         | `GET /api/invoices`                                   | `listInvoices`                   | `psp.invoices.list`                |
+|                         | `GET /api/invoices/{invoiceId}`                       | `getInvoice`                     | `psp.invoices.get`                 |
+|                         | `GET /api/invoices/{invoiceId}/events`                | `listInvoiceEvents`              | `psp.invoices.listEvents`          |
+|                         | `POST /api/invoices/{invoiceId}/cancel`               | `cancelInvoice`                  | `psp.invoices.cancel`              |
+| Balances and operations | `GET /api/balances`                                   | `getMerchantBalances`            | `psp.balances.get`                 |
+|                         | `GET /api/operations`                                 | `listMerchantOperations`         | `psp.operations.list`              |
+|                         | `GET /api/operations/summary`                         | `getMerchantOperationsSummary`   | `psp.operations.getSummary`        |
+|                         | `GET /api/operations/statement` (`format=csv` — CSV)  | `getMerchantOperationsStatement` | `psp.operations.getStatement`      |
+|                         | `GET /api/operations/{operationId}`                   | `getMerchantOperation`           | `psp.operations.get`               |
+| Deposits                | `GET /api/deposits`                                   | `listMerchantDeposits`           | `psp.deposits.list`                |
+|                         | `GET /api/deposits/{depositId}`                       | `getMerchantDeposit`             | `psp.deposits.get`                 |
+| Payouts                 | `POST /api/payouts/quote`                             | `quotePayout`                    | `psp.payouts.quote`                |
+|                         | `POST /api/payouts`                                   | `createPayout`                   | `psp.payouts.create`               |
+|                         | `GET /api/payouts`                                    | `listPayouts`                    | `psp.payouts.list`                 |
+|                         | `GET /api/payouts/{payoutId}`                         | `getPayout`                      | `psp.payouts.get`                  |
+|                         | `POST /api/payouts/{payoutId}/cancel`                 | `cancelPayout`                   | `psp.payouts.cancel`               |
+| Networks and tariff     | `GET /api/networks`                                   | `listNetworks`                   | `psp.networks.list`                |
+|                         | `GET /api/tariff`                                     | `getMerchantTariff`              | `psp.tariff.get`                   |
+| Webhook settings        | `GET /api/webhook`                                    | `getWebhookSettings`             | `psp.webhook.get`                  |
+|                         | `PUT /api/webhook`                                    | `setWebhookUrl`                  | `psp.webhook.setUrl`               |
+|                         | `DELETE /api/webhook`                                 | `removeWebhookUrl`               | `psp.webhook.removeUrl`            |
+|                         | `POST /api/webhook/test`                              | `sendTestWebhook`                | `psp.webhook.sendTest`             |
+|                         | `GET /api/webhook/deliveries`                         | `listDeliveries`                 | `psp.webhook.deliveries.list`      |
+|                         | `GET /api/webhook/deliveries/{deliveryId}`            | `getDelivery`                    | `psp.webhook.deliveries.get`       |
+|                         | `POST /api/webhook/deliveries/{deliveryId}/redeliver` | `redeliverDelivery`              | `psp.webhook.deliveries.redeliver` |
 
 ### Example routes — exist only in the examples (`x-example-extra: true`)
 
-| Route | operationId | What |
-|---|---|---|
-| `GET /api/config` | `getConfig` | `backend` (`plain`/`sdk`), versions, `net`, `apiUrl`, `keyId`, `secretHint`, `checkoutUrl`, `webhookUrl`, `serverTime`. Never the secret |
-| `POST /api/invoices/{invoiceId}/checkout-link` | `createCheckoutLink` | Signed payment-widget link: `{ branding?, locale?, expiresInSeconds? }` → `{ url, token, expiresAt }` |
-| `GET /api/request-log` | `listRequestLog` | Requests to the platform, newest first; filters `operationId`, `callId`, `status`; pages |
-| `GET /api/request-log/{entryId}` | `getRequestLogEntry` | One request with headers and bodies |
-| `DELETE /api/request-log` | `clearRequestLog` | Clear the log |
-| `GET /api/stream` | `streamEvents` | SSE: `ready`, `request`, `webhook` |
-| `GET /api/received-webhooks` | `listReceivedWebhooks` | Webhooks that reached the receiver; filters `invoiceId`, `webhookId`, `event`, `result`; pages |
-| `GET /api/received-webhooks/{receivedId}` | `getReceivedWebhook` | One webhook: headers, raw body, verification, our answer |
-| `DELETE /api/received-webhooks` | `clearReceivedWebhooks` | Clear the log (and the duplicate memory) |
-| `GET /api/receiver` | `getReceiverSettings` | How the receiver answers |
-| `PUT /api/receiver` | `setReceiverSettings` | `{ mode: auto/fixed, status, delayMs, failNext }` — to produce retries, `failed` deliveries and redeliveries on purpose |
-| `POST /webhooks/psp` | `receivePspWebhook` | The receiver; called by the platform (`x-caller: platform`) |
+| Route                                          | operationId             | What                                                                                                                                                 |
+| ---------------------------------------------- | ----------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `GET /api/config`                              | `getConfig`             | `backend` (`plain`/`sdk`), versions, `net`, `apiUrl`, `keyId`, `previousSecretSet`, `checkoutUrl`, `webhookUrl`, `serverTime`. No part of the secret |
+| `POST /api/invoices/{invoiceId}/checkout-link` | `createCheckoutLink`    | Signed payment-widget link: `{ branding?, locale?, expiresInSeconds? }` → `{ url, token, expiresAt }`                                                |
+| `GET /api/request-log`                         | `listRequestLog`        | Requests to the platform, newest first; filters `source`, `operationId`, `callId`, `status`; pages                                                   |
+| `GET /api/request-log/{entryId}`               | `getRequestLogEntry`    | One request with headers and bodies                                                                                                                  |
+| `DELETE /api/request-log`                      | `clearRequestLog`       | Clear the log                                                                                                                                        |
+| `GET /api/stream`                              | `streamEvents`          | SSE: `ready`, `request`, `webhook`                                                                                                                   |
+| `GET /api/received-webhooks`                   | `listReceivedWebhooks`  | Webhooks that reached the receiver; filters `invoiceId`, `webhookId`, `event`, `result`; pages                                                       |
+| `GET /api/received-webhooks/{receivedId}`      | `getReceivedWebhook`    | One webhook: headers, raw body, verification, our answer                                                                                             |
+| `DELETE /api/received-webhooks`                | `clearReceivedWebhooks` | Clear the log (and the duplicate memory)                                                                                                             |
+| `GET /api/receiver`                            | `getReceiverSettings`   | How the receiver answers                                                                                                                             |
+| `PUT /api/receiver`                            | `setReceiverSettings`   | `{ mode: auto/fixed, status, delayMs, failNext }` — to produce retries, `failed` deliveries and redeliveries on purpose                              |
+| `POST /webhooks/psp`                           | `receivePspWebhook`     | The receiver; called by the platform (`x-caller: platform`)                                                                                          |
 
 Example routes never call the platform and never write request-log entries.
 
@@ -106,7 +139,11 @@ Example routes never call the platform and never write request-log entries.
   signed), sdk passes the parameters to the SDK method, which rebuilds the same string;
 - forwards the JSON body: plain the received bytes, sdk the parsed value (re-serialised by the SDK); no body in — no
   body out;
-- forwards `X-Client-Request-Id` when the UI sends it.
+- forwards `X-Client-Request-Id` when the UI sends it;
+- does **not** forward `X-Example-Source`: it only tags the request-log entries (see [Request log](#request-log)).
+
+One known difference: `PUT /api/webhook` in sdk is `psp.webhook.setUrl(body.url)`, so only `url` reaches the platform;
+plain forwards the body as received, extra fields included.
 
 The only checks before the platform call are those the SDK makes itself before sending (it throws `TypeError`); the
 plain backend makes the same ones, so both backends answer the same `400 example_invalid_request` without a platform
@@ -126,26 +163,35 @@ call: a body that is not JSON, `X-Client-Request-Id` outside `^[\x21-\x7E]{1,128
   The request-log entries of that call have it as `callId`: the UI links an action to its log entries with
   `GET /api/request-log?callId=…`.
 
-**Attempts.** plain makes exactly one attempt per call. sdk uses the SDK's retry policy (gateway docs 13.10): one call
-may produce several attempts, each one its own log entry with `attempt` 1, 2, …; the UI gets the outcome of the last.
+**Attempts.** plain makes exactly one attempt per call. sdk keeps the SDK's default retry policy (gateway docs 13.10),
+because that is what a merchant gets: one call may produce several attempts, each one its own log entry with `attempt`
+1, 2, …, and the UI gets the outcome of the last. On repeated `503`/`429`/timeouts one UI action can therefore take
+minutes (backoff up to 60 s between attempts, up to 180 s per attempt): the UI shows the call as pending and the
+attempts appear in the log over SSE as they happen. There is no switch to turn retries off.
+
+**The CSV statement in sdk.** `psp.operations.getStatement({ ..., format: 'csv' })` returns the body as a string, and
+`getResponseMeta()` has nothing for a string. The status is always `200` on success, and the headers to pass through
+(`X-Request-Id`, `X-Client-Request-Id`, `X-Api-Key-Deprecated`) come from what the backend's `fetch` wrapper captured
+for the last attempt of the call — the same capture that fills the request log (`onResponse` alone gives the status
+and `X-Request-Id`, not the other headers).
 
 ## Errors
 
 Every error body has the platform's shape `{ errorCode, errorMessage, details }`.
 
-| Source | How the UI tells | Status and body |
-|---|---|---|
+| Source       | How the UI tells                                                  | Status and body                                                                                                                                                                                       |
+| ------------ | ----------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | The platform | `errorCode` without the `example_` prefix; `X-Request-Id` present | Exactly as the platform sent it — every `errorCode` with its `details`, including `401 api_auth_failed` (with `details.stringToSign` at `bad_signature`), `429`, `503 maintenance` with `Retry-After` |
-| The backend | `errorCode` starts with `example_` | One of the codes below |
+| The backend  | `errorCode` starts with `example_`                                | One of the codes below                                                                                                                                                                                |
 
-| `errorCode` | Status | When | `details` |
-|---|---|---|---|
-| `example_invalid_request` | 400 | Refused before any platform call (see above); bad widget-link options; bad receiver settings or log filters | `{ field, message }` |
-| `example_not_found` | 404 | Unknown route, request-log entry or received webhook | `null` |
-| `example_upstream_timeout` | 504 | No answer from the platform in time | `{ timeoutMs }` |
-| `example_upstream_unreachable` | 502 | No connection, DNS or TLS failure | `{ cause }` |
-| `example_upstream_bad_response` | 502 | An answer that is not the platform's: a redirect, a non-JSON error body, an empty 2xx body | `{ status, requestId, bodyPreview }` |
-| `example_internal_error` | 500 | A bug in the backend | `null` |
+| `errorCode`                     | Status | When                                                                                                        | `details`                            |
+| ------------------------------- | ------ | ----------------------------------------------------------------------------------------------------------- | ------------------------------------ |
+| `example_invalid_request`       | 400    | Refused before any platform call (see above); bad widget-link options; bad receiver settings or log filters | `{ field, message }`                 |
+| `example_not_found`             | 404    | Unknown route, request-log entry or received webhook                                                        | `null`                               |
+| `example_upstream_timeout`      | 504    | No answer from the platform in time                                                                         | `{ timeoutMs }`                      |
+| `example_upstream_unreachable`  | 502    | No connection, DNS or TLS failure                                                                           | `{ cause }`                          |
+| `example_upstream_bad_response` | 502    | An answer that is not the platform's: a redirect, a non-JSON error body, an empty 2xx body                  | `{ status, requestId, bodyPreview }` |
+| `example_internal_error`        | 500    | A bug in the backend                                                                                        | `null`                               |
 
 The sdk backend maps SDK errors this way: `PspApiError` (and `PspAuthError`) → the platform status and
 `{ errorCode, errorMessage, details }` from the error, headers from `error.headers`; `PspTimeoutError` →
@@ -161,15 +207,20 @@ secret.
 
 `RequestLogItem` (list, SSE `request`):
 
-| Field | plain | sdk |
-|---|---|---|
-| `id`, `callId`, `createdAt`, `durationMs` | yes | yes |
-| `operationId` — Merchant API operationId | yes | yes |
-| `sdkMethod` — e.g. `invoices.create` | `null` | yes |
-| `attempt` | always `1` | 1, 2, … |
-| `method`, `path` (with the query, as signed) | yes | yes |
-| `status`, `errorCode`, `requestId`, `clientRequestId`, `apiKeyDeprecatedUntil` | yes | yes |
-| `transportError` `{ code: timeout/network, message }` when there was no answer | yes | yes |
+| Field                                                                          | plain      | sdk     |
+| ------------------------------------------------------------------------------ | ---------- | ------- |
+| `id`, `callId`, `createdAt`, `durationMs`                                      | yes        | yes     |
+| `source` — `poll` when the call had `X-Example-Source: poll`, else `ui`        | yes        | yes     |
+| `operationId` — Merchant API operationId                                       | yes        | yes     |
+| `sdkMethod` — `x-sdk-method` of the route, e.g. `invoices.create`              | `null`     | yes     |
+| `attempt`                                                                      | always `1` | 1, 2, … |
+| `method`, `path` (with the query, as signed)                                   | yes        | yes     |
+| `status`, `errorCode`, `requestId`, `clientRequestId`, `apiKeyDeprecatedUntil` | yes        | yes     |
+| `transportError` `{ code: timeout/network, message }` when there was no answer | yes        | yes     |
+
+**Auto-refresh.** The UI sends `X-Example-Source: poll` on calls it makes by itself (refreshing an invoice, the
+deliveries…). Their entries get `source: "poll"`; `GET /api/request-log?source=ui` hides them. SSE emits them like any
+other entry; the UI filters them on its side.
 
 `RequestLogEntry` (`GET /api/request-log/{entryId}`) adds `url`, `requestHeaders` (with the signature headers
 `X-Api-Key`, `X-Api-Timestamp`, `X-Api-Nonce`, `X-Api-Signature`), `requestBody`, `responseHeaders`, `responseBody`
@@ -255,18 +306,21 @@ unstable names in bundles and generated types. The rendition changes only that:
   `schemas/<operationId>Body`, `schemas/<operationId>Response` (the operations `$ref` them; nothing else changes);
 - `info.x-generated-from` holds the source path and its sha256.
 
-It must be regenerated whenever the copy changes; the workspace tooling (being set up) gets a `contract:sync` that
-writes it and a `contract:check` that fails when the sha256 differs. One deliberate deviation in the contract itself:
+It is regenerated by `pnpm contract:sync` whenever the copy changes (after `api:sync` of the SDK);
+`pnpm contract:check` fails when it is stale. One deliberate deviation in the contract itself:
 the copy declares the `V1Statement` object for `text/csv` too; the contract declares a string.
 
 ## Coverage
 
-Two mechanical checks, run in CI once the workspace exists:
-
-1. **Contract** — the `x-merchant-api` values of `openapi.yaml` equal the set of operationIds of
-   `packages/node/api/openapi.v1.json` (27 today), each exactly once, and the parameter names of each passthrough route
-   equal those of its operation. Every other operation has `x-example-extra: true`.
-2. **Backends** — the same test suite runs against each backend with a fake gateway (`packages/node/test/fake-gateway.ts`
+1. **Contract** (`test/`, in `pnpm ci` now):
+   - `coverage.test.ts` — the `x-merchant-api` values of `openapi.yaml` equal the operationIds of
+     `packages/node/api/openapi.v1.json` (27), each once; every other operation has `x-example-extra: true`; each
+     passthrough route is `/api/<path>` with the same method, the same parameters (`in` and `name`, in order, plus
+     `X-Example-Source` first), the same request body (presence, `required`, media types), the same success statuses
+     and media types, `4XX` and `5XX`; every `$ref` resolves; the rendition has the same operations as the copy.
+   - `sdk-methods.test.ts` — every passthrough route has a distinct `x-sdk-method`, and calling that method of the SDK
+     (from `packages/node/src`, against a stub `fetch`) sends exactly the Merchant API method and path of the route.
+2. **Backends** (with the backends, later) — the same test suite runs against each backend with a fake gateway (`packages/node/test/fake-gateway.ts`
    is a start): it calls every contract route, then reads `GET /api/request-log` and asserts that the `operationId`s
    of the entries cover every operationId of the copy, that each passthrough response carries `X-Example-Call-Id`
    matching a `callId`, and that statuses, bodies and the passed-through headers equal what the fake gateway sent.
@@ -281,7 +335,9 @@ Two mechanical checks, run in CI once the workspace exists:
       webhook.
 - [ ] The receiver: raw-body verification, the SDK's reason codes and statuses, duplicates, `ReceiverSettings`.
 - [ ] Widget links by gateway docs 20.2–20.3 with the SDK's option rules.
-- [ ] Never expose the secret: not in `/api/config` (only `secretHint`), not in the logs, not in errors.
+- [ ] Never expose the secret or any part of it: not in `/api/config`, not in the logs, not in errors.
+- [ ] Accept webhooks signed with `PSP_API_PREVIOUS_SECRET` when it is set (sdk: the SDK reads the variable itself;
+      plain: checks both secrets) and report `signedWith: "previous"`.
 - [ ] Refuse to start with a `psp_pk_live_` key.
 
 ## Not in the contract

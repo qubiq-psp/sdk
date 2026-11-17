@@ -2,51 +2,51 @@
   "openapi": "3.1.0",
   "info": {
     "title": "PSP Merchant API v1",
-    "description": "API мерчанта v1: инвойсы, балансы, операции и выписка, депозиты, котировки и выплаты, сети, тариф, вебхуки.\nЕго вызывает сервер мерчанта. Сессий и токенов нет: каждый запрос подписывается ключом и секретом API.\n\n## Где взять ключ и секрет\n\nПару ключей выдаёт администратор платформы при подключении мерчанта. Смотрит её сам мерчант в кабинете,\nраздел «Ключи API».\n\n| Что | Как выглядит | Где посмотреть |\n|---|---|---|\n| Ключ API (`keyId`) | `psp_pk_` и 24 символа | «Ключи API» в кабинете — виден всегда |\n| Секрет API | `psp_sk_` и 36 символов | «Ключи API» → «Показать секрет», после повторного ввода пароля. О каждом показе приходит письмо |\n\n- **Ключ** публичный: он уходит в каждом запросе в заголовке `X-Api-Key`.\n- **Секрет** не передаётся никогда: им считается подпись запроса. Им же платформа подписывает вебхуки.\n- **Кабинета ещё нет** — его открывает администратор платформы при подключении и присылает одноразовый пароль для первого входа.\n- **Администратор секрет не видит**: он может только выпустить новый, а мерчант посмотрит его в кабинете.\n\n## Подпись запроса в своём коде\n\nКаждый запрос несёт четыре заголовка:\n\n| Заголовок | Что в нём |\n|---|---|\n| `X-Api-Key` | Ключ `psp_pk_…` |\n| `X-Api-Timestamp` | Время подписи, unix-секунды, 10 цифр. Расхождение с часами сервера — не больше 300 с |\n| `X-Api-Nonce` | Случайная строка 16–64 символа `[A-Za-z0-9_-]`, новая на каждый запрос и каждый повтор. Удобно — uuid v4 |\n| `X-Api-Signature` | `v1=` и HMAC-SHA256 в hex нижнего регистра, 64 символа |\n\nHMAC-SHA256 считается секретом (UTF-8 байты `psp_sk_…` как есть) от строки подписи. Строка подписи —\nшесть строк, соединённых `\\n` (байт `0x0A`), без перевода строки в конце:\n\n| # | Строка |\n|---|---|\n| 1 | `v1` |\n| 2 | Метод заглавными: `GET`, `POST`, `PUT`, `DELETE` |\n| 3 | Путь с query байт в байт, как в запросе: `/api/v1/invoices?status=active,partially_paid&limit=20` |\n| 4 | Значение `X-Api-Timestamp` |\n| 5 | Значение `X-Api-Nonce` |\n| 6 | SHA-256 байтов тела в hex. Без тела — `e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855` |\n\nОшибка подписи — `401 api_auth_failed`, причина — в `details.reason`; при `bad_signature` в `details.stringToSign`\nлежит строка, которую собрал gateway: её сравнивают со своей.\n\n## Тестовые векторы\n\nПроверьте свою подпись до первого запроса. Секрет векторов вымышленный: `psp_sk_9fT2kQ7mW4xL1vR8nB5cJ3hD6gZ0aY2eUq4N`.\n\n**Вектор 1 — `POST` с телом**\n\n| Что | Значение |\n|---|---|\n| Метод и путь | `POST /api/v1/invoices` |\n| `X-Api-Timestamp` | `1790683200` |\n| `X-Api-Nonce` | `6f1c2a9e-4b7d-4e21-9a3c-8d5f0b2e7c41` |\n| Тело | Ниже: 138 байт, без перевода строки в конце |\n| SHA-256 тела | `c3e5c7ad5ff7b2b32958d47b76dccfa8587be1882fefb19f393a6652990008d1` |\n| `X-Api-Signature` | `v1=e2fda22d1cbec087e2edc769f9bfc2368c29fd43aff2f36822fa19d9396463d9` |\n\n```json\n{\"externalId\":\"order-10530\",\"network\":\"tron\",\"asset\":\"USDT\",\"amount\":\"50\",\"description\":\"Заказ 10530\",\"metadata\":{\"orderId\":\"10530\"}}\n```\n\n**Вектор 2 — `GET` без тела**\n\n| Что | Значение |\n|---|---|\n| Метод и путь | `GET /api/v1/invoices?status=active,partially_paid&limit=20` |\n| `X-Api-Timestamp` | `1790683260` |\n| `X-Api-Nonce` | `b2d4f6a8-1c3e-4f50-8a7b-9c0d1e2f3a4b` |\n| SHA-256 тела | `e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855` (пустое тело) |\n| `X-Api-Signature` | `v1=e336ed5f635db2db5de16f78a38feb28c86dd5245a0d92a2f2cf0f54e503d5f9` |\n\n## Общие правила\n\n- **`merchantId` не передаётся**: gateway берёт его из ключа. `merchantId` в теле или query — `400 invalid_schema`.\n- **Повторы.** Создание инвойса и выплаты безопасно повторить с тем же `externalId`: вернётся тот же объект,\n  второго не будет. Каждая попытка подписывается заново — с новыми временем и nonce.\n- **Ошибки** — `{ errorCode, errorMessage, details }`.\n- **Списки** — `{ items, page, limit, total }`.\n- **Лимитов** на успешные запросы нет.\n- **Версия API** — `v1` в пути `/api/v1/*`. `v1` первой строки строки подписи и в `v1=` подписи — версия схемы\n  подписи, а не API: у новой версии API схема подписи может остаться той же.\n- **Вебхуки** — формат и подпись описаны в документации платформы о вебхуках для мерчантов.",
+    "description": "Merchant API v1: invoices, balances, operations and statement, deposits, quotes and payouts, networks, tariff, webhooks.\nThe server of the merchant calls it. There are no sessions or tokens: every request is signed with the API key and secret.\n\n## Where to get the key and the secret\n\nThe platform administrator issues the key pair when the merchant is connected. The merchant sees it in the cabinet,\nsection \"API keys\".\n\n| What | What it looks like | Where to see it |\n|---|---|---|\n| API key (`keyId`) | `psp_pk_` and 24 characters | \"API keys\" in the cabinet — always visible |\n| API secret | `psp_sk_` and 36 characters | \"API keys\" → \"Show secret\", after re-entry of the password. An email comes on every reveal |\n\n- **The key** is public: it goes in every request in the `X-Api-Key` header.\n- **The secret** is never sent: the signature of the request is computed with it. The platform signs webhooks with it too.\n- **No cabinet yet** — the platform administrator opens it when the merchant is connected and sends a one-time password for the first login.\n- **The administrator does not see the secret**: they can only issue a new one, and the merchant sees it in the cabinet.\n\n## Signing a request in your own code\n\nEvery request carries four headers:\n\n| Header | What it holds |\n|---|---|\n| `X-Api-Key` | The key `psp_pk_…` |\n| `X-Api-Timestamp` | The time of the signature, unix seconds, 10 digits. The difference from the server clock is at most 300 s |\n| `X-Api-Nonce` | A random string of 16–64 characters `[A-Za-z0-9_-]`, new for every request and every retry. A uuid v4 is handy |\n| `X-Api-Signature` | `v1=` and HMAC-SHA256 in lowercase hex, 64 characters |\n\nHMAC-SHA256 is computed with the secret (the UTF-8 bytes of `psp_sk_…` as they are) over the string to sign. The string to sign\nis six lines joined with `\\n` (byte `0x0A`), with no line break at the end:\n\n| # | Line |\n|---|---|\n| 1 | `v1` |\n| 2 | The method in capitals: `GET`, `POST`, `PUT`, `DELETE` |\n| 3 | The path with the query, byte for byte as in the request: `/api/v1/invoices?status=active,partially_paid&limit=20` |\n| 4 | The value of `X-Api-Timestamp` |\n| 5 | The value of `X-Api-Nonce` |\n| 6 | SHA-256 of the bytes of the body in hex. Without a body — `e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855` |\n\nA signature error is `401 api_auth_failed`, the cause is in `details.reason`; with `bad_signature`, `details.stringToSign`\nholds the string that gateway built: compare it with your own.\n\n## Test vectors\n\nCheck your signature before the first request. The secret of the vectors is made up: `psp_sk_9fT2kQ7mW4xL1vR8nB5cJ3hD6gZ0aY2eUq4N`.\n\n**Vector 1 — `POST` with a body**\n\n| What | Value |\n|---|---|\n| Method and path | `POST /api/v1/invoices` |\n| `X-Api-Timestamp` | `1790683200` |\n| `X-Api-Nonce` | `6f1c2a9e-4b7d-4e21-9a3c-8d5f0b2e7c41` |\n| Body | Below: 138 bytes, with no line break at the end |\n| SHA-256 of the body | `c3e5c7ad5ff7b2b32958d47b76dccfa8587be1882fefb19f393a6652990008d1` |\n| `X-Api-Signature` | `v1=e2fda22d1cbec087e2edc769f9bfc2368c29fd43aff2f36822fa19d9396463d9` |\n\n```json\n{\"externalId\":\"order-10530\",\"network\":\"tron\",\"asset\":\"USDT\",\"amount\":\"50\",\"description\":\"Заказ 10530\",\"metadata\":{\"orderId\":\"10530\"}}\n```\n\n**Vector 2 — `GET` without a body**\n\n| What | Value |\n|---|---|\n| Method and path | `GET /api/v1/invoices?status=active,partially_paid&limit=20` |\n| `X-Api-Timestamp` | `1790683260` |\n| `X-Api-Nonce` | `b2d4f6a8-1c3e-4f50-8a7b-9c0d1e2f3a4b` |\n| SHA-256 of the body | `e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855` (empty body) |\n| `X-Api-Signature` | `v1=e336ed5f635db2db5de16f78a38feb28c86dd5245a0d92a2f2cf0f54e503d5f9` |\n\n## General rules\n\n- **`merchantId` is not sent**: gateway takes it from the key. `merchantId` in the body or the query — `400 invalid_schema`.\n- **Retries.** Creating an invoice or a payout is safe to retry with the same `externalId`: the same object comes back,\n  there is no second one. Each attempt is signed again — with a new time and nonce.\n- **Errors** — `{ errorCode, errorMessage, details }`.\n- **Lists** — `{ items, page, limit, total }`.\n- **Limits** on successful requests: none.\n- **API version** — `v1` in the path `/api/v1/*`. `v1` in the first line of the string to sign and in `v1=` of the signature is\n  the version of the signature scheme, not of the API: a new API version may keep the same signature scheme.\n- **Webhooks** — the format and the signature are described in the platform documentation on webhooks for merchants.",
     "version": "0.1.0",
     "contact": {},
     "x-generated-from": {
       "file": "packages/node/api/openapi.v1.json",
-      "sha256": "f4b3b422a11321e22e5da4ac720e590ad6e65284a06d3f31d5c132c937586b19",
+      "sha256": "00a6034ab013d949e32ce4fb75e249dae1a21b9b3d34ea3bd7777b1fc1c4bad6",
       "transform": "openapi 3.1.0; nullable: true -> type [T, \"null\"] (+ null in enum) or anyOf [schema, {type: null}]; inline parameters, request bodies and 2xx schemas of operations -> components (parameters/<operationId>.<name>, requestBodies/<operationId>, schemas/<operationId>Body, schemas/<operationId>Response)"
     }
   },
   "tags": [
     {
       "name": "Account",
-      "description": "Мерчант, его права и текущий ключ API"
+      "description": "The merchant, its permissions and the current API key"
     },
     {
       "name": "Invoices",
-      "description": "Инвойсы мерчанта"
+      "description": "Invoices of the merchant"
     },
     {
       "name": "Balances",
-      "description": "Балансы мерчанта"
+      "description": "Balances of the merchant"
     },
     {
       "name": "Operations",
-      "description": "Операции, итоги и выписка мерчанта"
+      "description": "Operations, totals and statement of the merchant"
     },
     {
       "name": "Deposits",
-      "description": "Депозиты мерчанта"
+      "description": "Deposits of the merchant"
     },
     {
       "name": "Payouts",
-      "description": "Котировки и заявки на выплату"
+      "description": "Quotes and payout requests"
     },
     {
       "name": "Networks",
-      "description": "Сети и активы"
+      "description": "Networks and assets"
     },
     {
       "name": "Tariff",
-      "description": "Правила комиссии мерчанта"
+      "description": "Fee rules of the merchant"
     },
     {
       "name": "Webhooks",
-      "description": "URL вебхука, тест, журнал доставок и повтор"
+      "description": "Webhook URL, test, journal of deliveries and retry"
     }
   ],
   "components": {
@@ -55,7 +55,7 @@
         "type": "apiKey",
         "in": "header",
         "name": "X-Api-Key",
-        "description": "Ключ API — `psp_pk_…`, уходит в заголовке `X-Api-Key` каждого запроса. Где взять — раздел «Где взять ключ и секрет» в описании API."
+        "description": "API key — `psp_pk_…`, it goes in the `X-Api-Key` header of every request. Where to get it — the section \"Where to get the key and the secret\" in the API description."
       }
     },
     "schemas": {
@@ -65,7 +65,7 @@
           "keyId": {
             "type": "string",
             "example": "psp_pk_3Kd9Lm2Qx7Rt5Vb8Nw1Hc4Zp",
-            "description": "X-Api-Key этого запроса"
+            "description": "X-Api-Key of this request"
           },
           "status": {
             "type": "string",
@@ -73,7 +73,7 @@
               "current",
               "previous"
             ],
-            "description": "previous — запрос подписан прежним секретом после смены секрета",
+            "description": "previous — the request is signed with the previous secret after a rotation of the secret",
             "example": "current"
           },
           "graceUntil": {
@@ -82,7 +82,7 @@
               "null"
             ],
             "format": "date-time",
-            "description": "До какого момента действует прежний ключ; у current — null",
+            "description": "Until when the previous key works; null for current",
             "example": "2026-09-29T15:00:00.000Z"
           }
         },
@@ -110,7 +110,7 @@
               "active",
               "blocked"
             ],
-            "description": "Мерчант в архиве (403 merchant_archived) и закрытый пользователь (403 account_closed) ответа не получают",
+            "description": "An archived merchant (403 merchant_archived) and a closed user (403 account_closed) get no answer",
             "example": "active"
           },
           "invoicesEnabled": {
@@ -127,7 +127,7 @@
           "serverTime": {
             "type": "number",
             "example": 1790683170,
-            "description": "Время сервера, unix-секунды"
+            "description": "Server time, unix seconds"
           }
         },
         "required": [
@@ -446,7 +446,7 @@
             "type": "string",
             "minLength": 1,
             "maxLength": 200,
-            "description": "Текст в data.message тестового вебхука",
+            "description": "Text in data.message of the test webhook",
             "example": "Технические работы, платежи временно не принимаются"
           }
         }
@@ -459,7 +459,7 @@
             "minLength": 1,
             "maxLength": 2048,
             "example": "https://shop.example.com/psp/webhooks",
-            "description": "URL вебхуков. Только https://, публичный хост — проверяет webhook-service: отказ — 400 invalid_url"
+            "description": "Webhook URL. Only https://, a public host — webhook-service checks it: a refusal — 400 invalid_url"
           }
         },
         "required": [
@@ -963,7 +963,7 @@
               "previous",
               null
             ],
-            "description": "Каким секретом подписана попытка: current — текущим, previous — не текущим (прежним до смены), null — неизвестно",
+            "description": "Which secret signed the attempt: current — the current one, previous — not the current one (the previous one before the rotation), null — unknown",
             "example": "current"
           }
         },
@@ -1448,7 +1448,7 @@
               "string",
               "null"
             ],
-            "description": "How the payment is matched to the invoice: in_time, after_final, late, wrong_asset",
+            "description": "How the payment is matched to the invoice: in_time, after_final, late, wrong_asset; dust — below minCreditAmount of the asset, not credited to the invoice (result null, applied \"0\")",
             "enum": [
               "in_time",
               "after_final",
@@ -2086,7 +2086,7 @@
           },
           "matchKind": {
             "type": "string",
-            "description": "How the payment is matched to the invoice: in_time, after_final, late, wrong_asset",
+            "description": "How the payment is matched to the invoice: in_time, after_final, late, wrong_asset; dust — below minCreditAmount of the asset, not credited to the invoice (result null, applied \"0\")",
             "enum": [
               "in_time",
               "after_final",
@@ -2105,7 +2105,7 @@
               "string",
               "null"
             ],
-            "description": "exact, underpaid, overpaid for in_time and after_final after crediting; otherwise null",
+            "description": "exact, underpaid, overpaid for in_time and after_final after crediting; otherwise null (late, wrong_asset, dust, not credited yet)",
             "enum": [
               "exact",
               "underpaid",
@@ -2117,7 +2117,7 @@
           "applied": {
             "type": "string",
             "pattern": "^(0|[1-9]\\d*)(\\.\\d*[1-9])?$",
-            "description": "Part that closed the invoice amount; \"0\" at late and wrong_asset",
+            "description": "Part that closed the invoice amount; \"0\" at late, wrong_asset and dust",
             "example": "0"
           },
           "overpaid": {
@@ -2942,7 +2942,7 @@
               "string",
               "null"
             ],
-            "description": "exact, underpaid, overpaid for in_time and after_final after crediting; otherwise null",
+            "description": "exact, underpaid, overpaid for in_time and after_final after crediting; otherwise null (late, wrong_asset, dust, not credited yet)",
             "enum": [
               "exact",
               "underpaid",
@@ -2956,7 +2956,7 @@
               "string",
               "null"
             ],
-            "description": "How the payment is matched to the invoice: in_time, after_final, late, wrong_asset",
+            "description": "How the payment is matched to the invoice: in_time, after_final, late, wrong_asset; dust — below minCreditAmount of the asset, not credited to the invoice (result null, applied \"0\")",
             "enum": [
               "in_time",
               "after_final",
@@ -4644,7 +4644,7 @@
       "getAccount.X-Client-Request-Id": {
         "name": "X-Client-Request-Id",
         "in": "header",
-        "description": "Свой id запроса мерчанта: печатные ASCII без пробелов, до 128 символов. Не подписывается, возвращается эхом",
+        "description": "Own request id of the merchant: printable ASCII without spaces, up to 128 characters. Not signed, echoed back",
         "required": false,
         "schema": {
           "type": "string",
@@ -4655,7 +4655,7 @@
       "createInvoice.X-Client-Request-Id": {
         "name": "X-Client-Request-Id",
         "in": "header",
-        "description": "Свой id запроса мерчанта: печатные ASCII без пробелов, до 128 символов. Не подписывается, возвращается эхом",
+        "description": "Own request id of the merchant: printable ASCII without spaces, up to 128 characters. Not signed, echoed back",
         "required": false,
         "schema": {
           "type": "string",
@@ -4772,7 +4772,7 @@
       "listInvoices.X-Client-Request-Id": {
         "name": "X-Client-Request-Id",
         "in": "header",
-        "description": "Свой id запроса мерчанта: печатные ASCII без пробелов, до 128 символов. Не подписывается, возвращается эхом",
+        "description": "Own request id of the merchant: printable ASCII without spaces, up to 128 characters. Not signed, echoed back",
         "required": false,
         "schema": {
           "type": "string",
@@ -4794,7 +4794,7 @@
       "getInvoice.X-Client-Request-Id": {
         "name": "X-Client-Request-Id",
         "in": "header",
-        "description": "Свой id запроса мерчанта: печатные ASCII без пробелов, до 128 символов. Не подписывается, возвращается эхом",
+        "description": "Own request id of the merchant: printable ASCII without spaces, up to 128 characters. Not signed, echoed back",
         "required": false,
         "schema": {
           "type": "string",
@@ -4841,7 +4841,7 @@
       "listInvoiceEvents.X-Client-Request-Id": {
         "name": "X-Client-Request-Id",
         "in": "header",
-        "description": "Свой id запроса мерчанта: печатные ASCII без пробелов, до 128 символов. Не подписывается, возвращается эхом",
+        "description": "Own request id of the merchant: printable ASCII without spaces, up to 128 characters. Not signed, echoed back",
         "required": false,
         "schema": {
           "type": "string",
@@ -4863,7 +4863,7 @@
       "cancelInvoice.X-Client-Request-Id": {
         "name": "X-Client-Request-Id",
         "in": "header",
-        "description": "Свой id запроса мерчанта: печатные ASCII без пробелов, до 128 символов. Не подписывается, возвращается эхом",
+        "description": "Own request id of the merchant: printable ASCII without spaces, up to 128 characters. Not signed, echoed back",
         "required": false,
         "schema": {
           "type": "string",
@@ -4896,7 +4896,7 @@
       "getMerchantBalances.X-Client-Request-Id": {
         "name": "X-Client-Request-Id",
         "in": "header",
-        "description": "Свой id запроса мерчанта: печатные ASCII без пробелов, до 128 символов. Не подписывается, возвращается эхом",
+        "description": "Own request id of the merchant: printable ASCII without spaces, up to 128 characters. Not signed, echoed back",
         "required": false,
         "schema": {
           "type": "string",
@@ -5064,7 +5064,7 @@
       "listMerchantOperations.X-Client-Request-Id": {
         "name": "X-Client-Request-Id",
         "in": "header",
-        "description": "Свой id запроса мерчанта: печатные ASCII без пробелов, до 128 символов. Не подписывается, возвращается эхом",
+        "description": "Own request id of the merchant: printable ASCII without spaces, up to 128 characters. Not signed, echoed back",
         "required": false,
         "schema": {
           "type": "string",
@@ -5119,7 +5119,7 @@
       "getMerchantOperationsSummary.X-Client-Request-Id": {
         "name": "X-Client-Request-Id",
         "in": "header",
-        "description": "Свой id запроса мерчанта: печатные ASCII без пробелов, до 128 символов. Не подписывается, возвращается эхом",
+        "description": "Own request id of the merchant: printable ASCII without spaces, up to 128 characters. Not signed, echoed back",
         "required": false,
         "schema": {
           "type": "string",
@@ -5189,7 +5189,7 @@
       "getMerchantOperationsStatement.X-Client-Request-Id": {
         "name": "X-Client-Request-Id",
         "in": "header",
-        "description": "Свой id запроса мерчанта: печатные ASCII без пробелов, до 128 символов. Не подписывается, возвращается эхом",
+        "description": "Own request id of the merchant: printable ASCII without spaces, up to 128 characters. Not signed, echoed back",
         "required": false,
         "schema": {
           "type": "string",
@@ -5211,7 +5211,7 @@
       "getMerchantOperation.X-Client-Request-Id": {
         "name": "X-Client-Request-Id",
         "in": "header",
-        "description": "Свой id запроса мерчанта: печатные ASCII без пробелов, до 128 символов. Не подписывается, возвращается эхом",
+        "description": "Own request id of the merchant: printable ASCII without spaces, up to 128 characters. Not signed, echoed back",
         "required": false,
         "schema": {
           "type": "string",
@@ -5338,7 +5338,7 @@
         "description": "How the deposit is matched",
         "schema": {
           "type": "string",
-          "description": "How the payment is matched to the invoice: in_time, after_final, late, wrong_asset",
+          "description": "How the payment is matched to the invoice: in_time, after_final, late, wrong_asset; dust — below minCreditAmount of the asset, not credited to the invoice (result null, applied \"0\")",
           "enum": [
             "in_time",
             "after_final",
@@ -5378,7 +5378,7 @@
       "listMerchantDeposits.X-Client-Request-Id": {
         "name": "X-Client-Request-Id",
         "in": "header",
-        "description": "Свой id запроса мерчанта: печатные ASCII без пробелов, до 128 символов. Не подписывается, возвращается эхом",
+        "description": "Own request id of the merchant: printable ASCII without spaces, up to 128 characters. Not signed, echoed back",
         "required": false,
         "schema": {
           "type": "string",
@@ -5400,7 +5400,7 @@
       "getMerchantDeposit.X-Client-Request-Id": {
         "name": "X-Client-Request-Id",
         "in": "header",
-        "description": "Свой id запроса мерчанта: печатные ASCII без пробелов, до 128 символов. Не подписывается, возвращается эхом",
+        "description": "Own request id of the merchant: printable ASCII without spaces, up to 128 characters. Not signed, echoed back",
         "required": false,
         "schema": {
           "type": "string",
@@ -5411,7 +5411,7 @@
       "quotePayout.X-Client-Request-Id": {
         "name": "X-Client-Request-Id",
         "in": "header",
-        "description": "Свой id запроса мерчанта: печатные ASCII без пробелов, до 128 символов. Не подписывается, возвращается эхом",
+        "description": "Own request id of the merchant: printable ASCII without spaces, up to 128 characters. Not signed, echoed back",
         "required": false,
         "schema": {
           "type": "string",
@@ -5422,7 +5422,7 @@
       "createPayout.X-Client-Request-Id": {
         "name": "X-Client-Request-Id",
         "in": "header",
-        "description": "Свой id запроса мерчанта: печатные ASCII без пробелов, до 128 символов. Не подписывается, возвращается эхом",
+        "description": "Own request id of the merchant: printable ASCII without spaces, up to 128 characters. Not signed, echoed back",
         "required": false,
         "schema": {
           "type": "string",
@@ -5541,7 +5541,7 @@
       "listPayouts.X-Client-Request-Id": {
         "name": "X-Client-Request-Id",
         "in": "header",
-        "description": "Свой id запроса мерчанта: печатные ASCII без пробелов, до 128 символов. Не подписывается, возвращается эхом",
+        "description": "Own request id of the merchant: printable ASCII without spaces, up to 128 characters. Not signed, echoed back",
         "required": false,
         "schema": {
           "type": "string",
@@ -5563,7 +5563,7 @@
       "getPayout.X-Client-Request-Id": {
         "name": "X-Client-Request-Id",
         "in": "header",
-        "description": "Свой id запроса мерчанта: печатные ASCII без пробелов, до 128 символов. Не подписывается, возвращается эхом",
+        "description": "Own request id of the merchant: printable ASCII without spaces, up to 128 characters. Not signed, echoed back",
         "required": false,
         "schema": {
           "type": "string",
@@ -5585,7 +5585,7 @@
       "cancelPayout.X-Client-Request-Id": {
         "name": "X-Client-Request-Id",
         "in": "header",
-        "description": "Свой id запроса мерчанта: печатные ASCII без пробелов, до 128 символов. Не подписывается, возвращается эхом",
+        "description": "Own request id of the merchant: printable ASCII without spaces, up to 128 characters. Not signed, echoed back",
         "required": false,
         "schema": {
           "type": "string",
@@ -5596,7 +5596,7 @@
       "listNetworks.X-Client-Request-Id": {
         "name": "X-Client-Request-Id",
         "in": "header",
-        "description": "Свой id запроса мерчанта: печатные ASCII без пробелов, до 128 символов. Не подписывается, возвращается эхом",
+        "description": "Own request id of the merchant: printable ASCII without spaces, up to 128 characters. Not signed, echoed back",
         "required": false,
         "schema": {
           "type": "string",
@@ -5607,7 +5607,7 @@
       "getMerchantTariff.X-Client-Request-Id": {
         "name": "X-Client-Request-Id",
         "in": "header",
-        "description": "Свой id запроса мерчанта: печатные ASCII без пробелов, до 128 символов. Не подписывается, возвращается эхом",
+        "description": "Own request id of the merchant: printable ASCII without spaces, up to 128 characters. Not signed, echoed back",
         "required": false,
         "schema": {
           "type": "string",
@@ -5618,7 +5618,7 @@
       "getWebhookSettings.X-Client-Request-Id": {
         "name": "X-Client-Request-Id",
         "in": "header",
-        "description": "Свой id запроса мерчанта: печатные ASCII без пробелов, до 128 символов. Не подписывается, возвращается эхом",
+        "description": "Own request id of the merchant: printable ASCII without spaces, up to 128 characters. Not signed, echoed back",
         "required": false,
         "schema": {
           "type": "string",
@@ -5629,7 +5629,7 @@
       "setWebhookUrl.X-Client-Request-Id": {
         "name": "X-Client-Request-Id",
         "in": "header",
-        "description": "Свой id запроса мерчанта: печатные ASCII без пробелов, до 128 символов. Не подписывается, возвращается эхом",
+        "description": "Own request id of the merchant: printable ASCII without spaces, up to 128 characters. Not signed, echoed back",
         "required": false,
         "schema": {
           "type": "string",
@@ -5640,7 +5640,7 @@
       "removeWebhookUrl.X-Client-Request-Id": {
         "name": "X-Client-Request-Id",
         "in": "header",
-        "description": "Свой id запроса мерчанта: печатные ASCII без пробелов, до 128 символов. Не подписывается, возвращается эхом",
+        "description": "Own request id of the merchant: printable ASCII without spaces, up to 128 characters. Not signed, echoed back",
         "required": false,
         "schema": {
           "type": "string",
@@ -5651,7 +5651,7 @@
       "sendTestWebhook.X-Client-Request-Id": {
         "name": "X-Client-Request-Id",
         "in": "header",
-        "description": "Свой id запроса мерчанта: печатные ASCII без пробелов, до 128 символов. Не подписывается, возвращается эхом",
+        "description": "Own request id of the merchant: printable ASCII without spaces, up to 128 characters. Not signed, echoed back",
         "required": false,
         "schema": {
           "type": "string",
@@ -5785,7 +5785,7 @@
       "listDeliveries.X-Client-Request-Id": {
         "name": "X-Client-Request-Id",
         "in": "header",
-        "description": "Свой id запроса мерчанта: печатные ASCII без пробелов, до 128 символов. Не подписывается, возвращается эхом",
+        "description": "Own request id of the merchant: printable ASCII without spaces, up to 128 characters. Not signed, echoed back",
         "required": false,
         "schema": {
           "type": "string",
@@ -5806,7 +5806,7 @@
       "getDelivery.X-Client-Request-Id": {
         "name": "X-Client-Request-Id",
         "in": "header",
-        "description": "Свой id запроса мерчанта: печатные ASCII без пробелов, до 128 символов. Не подписывается, возвращается эхом",
+        "description": "Own request id of the merchant: printable ASCII without spaces, up to 128 characters. Not signed, echoed back",
         "required": false,
         "schema": {
           "type": "string",
@@ -5828,7 +5828,7 @@
       "redeliverDelivery.X-Client-Request-Id": {
         "name": "X-Client-Request-Id",
         "in": "header",
-        "description": "Свой id запроса мерчанта: печатные ASCII без пробелов, до 128 символов. Не подписывается, возвращается эхом",
+        "description": "Own request id of the merchant: printable ASCII without spaces, up to 128 characters. Not signed, echoed back",
         "required": false,
         "schema": {
           "type": "string",
@@ -5950,8 +5950,8 @@
     "/api/v1/account": {
       "get": {
         "operationId": "getAccount",
-        "summary": "Мерчант, ключ запроса и время сервера",
-        "description": "Собственный метод gateway: соседей не вызывает. 200 значит, что keyId, секрет, строка подписи, часы и список IP настроены верно. Подходит ключ current или previous до graceUntil; прежний ключ — заголовок X-Api-Key-Deprecated. Параметров нет. Допуск R.",
+        "summary": "The merchant, the key of the request and the server time",
+        "description": "Own method of gateway: calls no neighbour. 200 means that keyId, the secret, the signature string, the clock and the IP list are set up right. The key current fits, or previous until graceUntil; the previous key — the header X-Api-Key-Deprecated. No parameters. Admission R.",
         "parameters": [
           {
             "$ref": "#/components/parameters/getAccount.X-Client-Request-Id"
@@ -6183,8 +6183,8 @@
     "/api/v1/invoices": {
       "post": {
         "operationId": "createInvoice",
-        "summary": "Создаёт инвойс и выдаёт адрес оплаты",
-        "description": "balance-service createInvoice, класс B-network (60 с), merchantId — в тело. 201 — новый инвойс, 200 — повтор с тем же externalId и теми же полями. Таймаут, обрыв и 503 — до трёх повторов, 503 address_pool_unavailable — ещё один через 2 с; исход неизвестен — 503 service_unavailable {outcome: \"unknown\"}. Допуск Wb, Ci.",
+        "summary": "Creates an invoice and assigns a payment address",
+        "description": "balance-service createInvoice, class B-network (60 s), merchantId — into the body. 201 — a new invoice, 200 — a repeat with the same externalId and the same fields. A timeout, a broken connection and 503 — up to three retries, 503 address_pool_unavailable — one more after 2 s; the outcome is unknown — 503 service_unavailable {outcome: \"unknown\"}. Admission Wb, Ci.",
         "parameters": [
           {
             "$ref": "#/components/parameters/createInvoice.X-Client-Request-Id"
@@ -6639,8 +6639,8 @@
       },
       "get": {
         "operationId": "listInvoices",
-        "summary": "Инвойсы мерчанта",
-        "description": "balance-service listInvoices, класс B-default (15 с), merchantId — в query. Новые сверху. Допуск R.",
+        "summary": "Invoices of the merchant",
+        "description": "balance-service listInvoices, class B-default (15 s), merchantId — into the query. Newest first. Admission R.",
         "parameters": [
           {
             "$ref": "#/components/parameters/listInvoices.page"
@@ -6958,8 +6958,8 @@
     "/api/v1/invoices/{invoiceId}": {
       "get": {
         "operationId": "getInvoice",
-        "summary": "Инвойс с платежами",
-        "description": "balance-service getInvoice, класс B-default. У платежей в aml только status. Допуск R.",
+        "summary": "Invoice with payments",
+        "description": "balance-service getInvoice, class B-default. Payments have only status in aml. Admission R.",
         "parameters": [
           {
             "$ref": "#/components/parameters/getInvoice.invoiceId"
@@ -7324,8 +7324,8 @@
     "/api/v1/invoices/{invoiceId}/events": {
       "get": {
         "operationId": "listInvoiceEvents",
-        "summary": "История инвойса",
-        "description": "balance-service listInvoiceEvents, класс B-default. В payload.payment.aml нет flags. Допуск R.",
+        "summary": "History of the invoice",
+        "description": "balance-service listInvoiceEvents, class B-default. payload.payment.aml has no flags. Admission R.",
         "parameters": [
           {
             "$ref": "#/components/parameters/listInvoiceEvents.invoiceId"
@@ -7661,8 +7661,8 @@
     "/api/v1/invoices/{invoiceId}/cancel": {
       "post": {
         "operationId": "cancelInvoice",
-        "summary": "Отменяет инвойс без поступлений",
-        "description": "balance-service cancelInvoice, класс B-default, merchantId — в тело. Тело необязательно. Идемпотентна по состоянию. Допуск W: заблокированный мерчант тоже отменяет.",
+        "summary": "Cancels an invoice with no incoming payments",
+        "description": "balance-service cancelInvoice, class B-default, merchantId — into the body. The body is optional. Idempotent by state. Admission W: a blocked merchant can cancel too.",
         "parameters": [
           {
             "$ref": "#/components/parameters/cancelInvoice.invoiceId"
@@ -8005,8 +8005,8 @@
     "/api/v1/balances": {
       "get": {
         "operationId": "getMerchantBalances",
-        "summary": "Балансы по сети и активу и сводно по валюте",
-        "description": "balance-service getMerchantBalances, класс B-default, merchantId — в пути. Допуск R.",
+        "summary": "Balances per network and asset, and in total per currency",
+        "description": "balance-service getMerchantBalances, class B-default, merchantId — into the path. Admission R.",
         "parameters": [
           {
             "$ref": "#/components/parameters/getMerchantBalances.network"
@@ -8340,8 +8340,8 @@
     "/api/v1/operations": {
       "get": {
         "operationId": "listMerchantOperations",
-        "summary": "Операции «зашло — комиссия — доступно»",
-        "description": "balance-service listMerchantOperations, класс B-default, merchantId — в пути. Допуск R.",
+        "summary": "Operations \"received — commission — available\"",
+        "description": "balance-service listMerchantOperations, class B-default, merchantId — into the path. Admission R.",
         "parameters": [
           {
             "$ref": "#/components/parameters/listMerchantOperations.page"
@@ -8732,8 +8732,8 @@
     "/api/v1/operations/summary": {
       "get": {
         "operationId": "getMerchantOperationsSummary",
-        "summary": "Итоги операций за период",
-        "description": "balance-service getMerchantOperationsSummary, класс B-report (45 с). from и to обязательны. Допуск R.",
+        "summary": "Totals of the operations for a period",
+        "description": "balance-service getMerchantOperationsSummary, class B-report (45 s). from and to are required. Admission R.",
         "parameters": [
           {
             "$ref": "#/components/parameters/getMerchantOperationsSummary.from"
@@ -9030,8 +9030,8 @@
     "/api/v1/operations/statement": {
       "get": {
         "operationId": "getMerchantOperationsStatement",
-        "summary": "Выписка за период в JSON или CSV",
-        "description": "balance-service getMerchantOperationsStatement, класс B-report (45 с). format=csv — text/csv; charset=utf-8, ответ balance-service байт в байт, без BOM. Допуск R.",
+        "summary": "Statement for a period in JSON or CSV",
+        "description": "balance-service getMerchantOperationsStatement, class B-report (45 s). format=csv — text/csv; charset=utf-8, the answer of balance-service byte for byte, without a BOM. Admission R.",
         "parameters": [
           {
             "$ref": "#/components/parameters/getMerchantOperationsStatement.from"
@@ -9348,8 +9348,8 @@
     "/api/v1/operations/{operationId}": {
       "get": {
         "operationId": "getMerchantOperation",
-        "summary": "Одна операция",
-        "description": "balance-service getMerchantOperation, класс B-default, merchantId — в пути. Допуск R.",
+        "summary": "One operation",
+        "description": "balance-service getMerchantOperation, class B-default, merchantId — into the path. Admission R.",
         "parameters": [
           {
             "$ref": "#/components/parameters/getMerchantOperation.operationId"
@@ -9674,8 +9674,8 @@
     "/api/v1/deposits": {
       "get": {
         "operationId": "listMerchantDeposits",
-        "summary": "Депозиты мерчанта и статус зачисления",
-        "description": "balance-service listMerchantDeposits, класс B-default. В aml только status; totals — итоги всего фильтра по активам. Допуск R.",
+        "summary": "Deposits of the merchant and the credit status",
+        "description": "balance-service listMerchantDeposits, class B-default. Only status in aml; totals — the totals of the whole filter per asset. Admission R.",
         "parameters": [
           {
             "$ref": "#/components/parameters/listMerchantDeposits.page"
@@ -10044,8 +10044,8 @@
     "/api/v1/deposits/{depositId}": {
       "get": {
         "operationId": "getMerchantDeposit",
-        "summary": "Один депозит",
-        "description": "balance-service getMerchantDeposit, класс B-default. В aml только status. Допуск R.",
+        "summary": "One deposit",
+        "description": "balance-service getMerchantDeposit, class B-default. Only status in aml. Admission R.",
         "parameters": [
           {
             "$ref": "#/components/parameters/getMerchantDeposit.depositId"
@@ -10356,8 +10356,8 @@
     "/api/v1/payouts/quote": {
       "post": {
         "operationId": "quotePayout",
-        "summary": "Котировка выплаты",
-        "description": "balance-service quotePayout, класс B-network (60 с), merchantId — в тело. Повторы только при отказе в соединении и 503. Лимит котировок balance-service — 429 too_many_requests {scope: \"quote\"} и Retry-After. Допуск Wb, Cp.",
+        "summary": "Payout quote",
+        "description": "balance-service quotePayout, class B-network (60 s), merchantId — into the body. Retries only on a refused connection and 503. The quote limit of balance-service — 429 too_many_requests {scope: \"quote\"} and Retry-After. Admission Wb, Cp.",
         "parameters": [
           {
             "$ref": "#/components/parameters/quotePayout.X-Client-Request-Id"
@@ -10877,8 +10877,8 @@
     "/api/v1/payouts": {
       "post": {
         "operationId": "createPayout",
-        "summary": "Заявка на выплату",
-        "description": "balance-service createPayout, класс B-payout (130 с), merchantId — в тело. 201 — заявка в pending_approval, 200 — повтор с тем же externalId. Повторы только внутри запроса; исход неизвестен — 503 service_unavailable {outcome: \"unknown\"}. Допуск Wb, Cp.",
+        "summary": "Payout request",
+        "description": "balance-service createPayout, class B-payout (130 s), merchantId — into the body. 201 — the request in pending_approval, 200 — a repeat with the same externalId. Retries only within the request; the outcome is unknown — 503 service_unavailable {outcome: \"unknown\"}. Admission Wb, Cp.",
         "parameters": [
           {
             "$ref": "#/components/parameters/createPayout.X-Client-Request-Id"
@@ -11475,8 +11475,8 @@
       },
       "get": {
         "operationId": "listPayouts",
-        "summary": "Выплаты мерчанта",
-        "description": "balance-service listPayouts, класс B-default, merchantId — в query. Новые сверху. Допуск R.",
+        "summary": "Payouts of the merchant",
+        "description": "balance-service listPayouts, class B-default, merchantId — into the query. Newest first. Admission R.",
         "parameters": [
           {
             "$ref": "#/components/parameters/listPayouts.page"
@@ -11890,8 +11890,8 @@
     "/api/v1/payouts/{payoutId}": {
       "get": {
         "operationId": "getPayout",
-        "summary": "Одна выплата",
-        "description": "balance-service getPayout, класс B-default, merchantId — в query. Допуск R.",
+        "summary": "One payout",
+        "description": "balance-service getPayout, class B-default, merchantId — into the query. Admission R.",
         "parameters": [
           {
             "$ref": "#/components/parameters/getPayout.payoutId"
@@ -12235,8 +12235,8 @@
     "/api/v1/payouts/{payoutId}/cancel": {
       "post": {
         "operationId": "cancelPayout",
-        "summary": "Отменяет заявку до одобрения",
-        "description": "balance-service cancelPayout, класс B-default, merchantId — в тело. Только pending_approval. Допуск W: заблокированный мерчант тоже отменяет.",
+        "summary": "Cancels a request before its approval",
+        "description": "balance-service cancelPayout, class B-default, merchantId — into the body. Only pending_approval. Admission W: a blocked merchant can cancel too.",
         "parameters": [
           {
             "$ref": "#/components/parameters/cancelPayout.payoutId"
@@ -12598,8 +12598,8 @@
     "/api/v1/networks": {
       "get": {
         "operationId": "listNetworks",
-        "summary": "Сети и активы",
-        "description": "balance-service listNetworks, класс B-default; merchantId методу не нужен. Допуск R.",
+        "summary": "Networks and assets",
+        "description": "balance-service listNetworks, class B-default; the method needs no merchantId. Admission R.",
         "parameters": [
           {
             "$ref": "#/components/parameters/listNetworks.X-Client-Request-Id"
@@ -12681,7 +12681,7 @@
                           "decimals": 18,
                           "invoicesEnabled": true,
                           "payoutsEnabled": true,
-                          "minCreditAmount": "0.00005",
+                          "minCreditAmount": "0.0005",
                           "payoutMin": "0.005",
                           "payoutMax": "5"
                         }
@@ -12928,8 +12928,8 @@
     "/api/v1/tariff": {
       "get": {
         "operationId": "getMerchantTariff",
-        "summary": "Тариф мерчанта",
-        "description": "balance-service getMerchantTariff, класс B-default. Только имя плана, правила без id и автора и asOf. Допуск R.",
+        "summary": "Tariff of the merchant",
+        "description": "balance-service getMerchantTariff, class B-default. Only the name of the plan, the rules without id and author, and asOf. Admission R.",
         "parameters": [
           {
             "$ref": "#/components/parameters/getMerchantTariff.X-Client-Request-Id"
@@ -13263,8 +13263,8 @@
     "/api/v1/webhook": {
       "get": {
         "operationId": "getWebhookSettings",
-        "summary": "Настройки вебхука",
-        "description": "webhook-service getWebhookSettings, класс W-default (10 с): без secretFingerprint, pausedAt, webhookConfiguredAt, createdAt, updatedAt, с блоком sync. secretSet = false без задачи secret — задача ставится сразу. Допуск R.",
+        "summary": "Webhook settings",
+        "description": "webhook-service getWebhookSettings, class W-default (10 s): without secretFingerprint, pausedAt, webhookConfiguredAt, createdAt, updatedAt, with the block sync. secretSet = false without a secret task — the task is queued at once. Admission R.",
         "parameters": [
           {
             "$ref": "#/components/parameters/getWebhookSettings.X-Client-Request-Id"
@@ -13540,8 +13540,8 @@
       },
       "put": {
         "operationId": "setWebhookUrl",
-        "summary": "Задаёт или меняет URL вебхуков",
-        "description": "Задача url в очереди синхронизации, первая попытка — в запросе. 200 — webhook-service подтвердил (URL после его нормализации); 202 — сохраняется, sync.state = pending, поля webhook-service — null; 400 invalid_url {field: \"url\", reason} — прежний URL в силе. Письмо webhook_url_changed, если URL изменился. Допуск W.",
+        "summary": "Sets or changes the webhook URL",
+        "description": "A url task in the sync queue, the first attempt is within the request. 200 — webhook-service confirmed (the URL after its normalisation); 202 — being saved, sync.state = pending, the fields of webhook-service are null; 400 invalid_url {field: \"url\", reason} — the previous URL stays in force. The email webhook_url_changed if the URL changed. Admission W.",
         "parameters": [
           {
             "$ref": "#/components/parameters/setWebhookUrl.X-Client-Request-Id"
@@ -13861,8 +13861,8 @@
       },
       "delete": {
         "operationId": "removeWebhookUrl",
-        "summary": "Удаляет URL вебхуков",
-        "description": "Как setWebhookUrl с desired_url = null: 200 — удалён (webhookUrl: null, deliveryState: no_url), 202 — удаление не подтверждено. Письмо — только если URL был. Тела нет. Допуск W.",
+        "summary": "Removes the webhook URL",
+        "description": "Like setWebhookUrl with desired_url = null: 200 — removed (webhookUrl: null, deliveryState: no_url), 202 — the removal is not confirmed. The email — only if there was a URL. No body. Admission W.",
         "parameters": [
           {
             "$ref": "#/components/parameters/removeWebhookUrl.X-Client-Request-Id"
@@ -14170,8 +14170,8 @@
     "/api/v1/webhook/test": {
       "post": {
         "operationId": "sendTestWebhook",
-        "summary": "Тестовый вебхук с результатом в ответе",
-        "description": "Не чаще раза в webhooks.testIntervalSeconds (10 с) на мерчанта, общий для API и кабинета: раньше — 429 too_many_requests {scope: \"webhook_test\"}. webhook-service sendTestWebhook, класс W-test (40 с), без повторов: таймаут — 503 service_unavailable {outcome: \"unknown\"}. 201 — доставка kind = test, попытка с signedWith: current. Допуск Wb.",
+        "summary": "Test webhook with the result in the answer",
+        "description": "At most once in webhooks.testIntervalSeconds (10 s) per merchant, shared by the API and the cabinet: earlier — 429 too_many_requests {scope: \"webhook_test\"}. webhook-service sendTestWebhook, class W-test (40 s), no retries: a timeout — 503 service_unavailable {outcome: \"unknown\"}. 201 — a delivery kind = test, an attempt with signedWith: current. Admission Wb.",
         "parameters": [
           {
             "$ref": "#/components/parameters/sendTestWebhook.X-Client-Request-Id"
@@ -14539,8 +14539,8 @@
     "/api/v1/webhook/deliveries": {
       "get": {
         "operationId": "listDeliveries",
-        "summary": "Журнал доставок",
-        "description": "webhook-service listDeliveries, класс W-default (10 с). Без тел и попыток, новые сверху. Допуск R.",
+        "summary": "Delivery log",
+        "description": "webhook-service listDeliveries, class W-default (10 s). Without bodies and attempts, newest first. Admission R.",
         "parameters": [
           {
             "$ref": "#/components/parameters/listDeliveries.page"
@@ -14890,8 +14890,8 @@
     "/api/v1/webhook/deliveries/{deliveryId}": {
       "get": {
         "operationId": "getDelivery",
-        "summary": "Доставка с телом и попытками",
-        "description": "Два параллельных вызова webhook-service: getDelivery и getWebhookSettings, класс W-default. У попыток вместо signatureKeyFingerprint — signedWith: current, previous или null (настройки не прочитались). Допуск R.",
+        "summary": "Delivery with the body and the attempts",
+        "description": "Two parallel calls of webhook-service: getDelivery and getWebhookSettings, class W-default. The attempts have, instead of signatureKeyFingerprint, signedWith: current, previous or null (the settings could not be read). Admission R.",
         "parameters": [
           {
             "$ref": "#/components/parameters/getDelivery.deliveryId"
@@ -15270,8 +15270,8 @@
     "/api/v1/webhook/deliveries/{deliveryId}/redeliver": {
       "post": {
         "operationId": "redeliverDelivery",
-        "summary": "Отправляет доставку ещё раз",
-        "description": "webhook-service redeliverDelivery, класс W-default. Тела нет. Один повтор, и только при обрыве соединения до ответа. 409 secret_not_set — gateway ставит задачу secret. Допуск Wb.",
+        "summary": "Sends a delivery again",
+        "description": "webhook-service redeliverDelivery, class W-default. No body. One retry, and only when the connection breaks before the answer. 409 secret_not_set — gateway queues a secret task. Admission Wb.",
         "parameters": [
           {
             "$ref": "#/components/parameters/redeliverDelivery.deliveryId"

@@ -1,0 +1,40 @@
+{
+  "name": "@psp-examples/contract",
+  "version": "0.1.0",
+  "private": true,
+  "description": "The HTTP contract between the example UI and the plain and sdk example backends",
+  "license": "MIT",
+  "type": "module",
+  "exports": {
+    "./types": {
+      "types": "./src/openapi.d.ts"
+    },
+    "./routes.json": "./src/routes.json",
+    "./openapi.yaml": "./openapi.yaml",
+    "./merchant-api.v1.json": "./merchant-api.v1.json",
+    "./package.json": "./package.json"
+  },
+  "typesVersions": {
+    "*": {
+      "types": [
+        "src/openapi.d.ts"
+      ]
+    }
+  },
+  "scripts": {
+    "contract:sync": "node scripts/sync.mjs",
+    "contract:check": "node scripts/sync.mjs --check",
+    "lint": "redocly lint openapi.yaml --config redocly.yaml",
+    "typecheck": "tsc",
+    "test": "vitest run",
+    "ci": "pnpm run contract:check && pnpm run lint && pnpm run typecheck && pnpm run test"
+  },
+  "devDependencies": {
+    "@redocly/cli": "1.34.23",
+    "@types/node": "^22",
+    "openapi-typescript": "^7.13",
+    "typescript": "~5.9.3",
+    "vitest": "^3.2",
+    "yaml": "^2.8"
+  }
+}
