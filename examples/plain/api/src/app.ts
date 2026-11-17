@@ -5,6 +5,7 @@ import { EventBus } from './bus.ts';
 import { CheckoutInputError, createCheckoutLink } from './checkout.ts';
 import { loadConfig, type Config } from './config.ts';
 import { invalidRequest, notFound, registerErrorHandler } from './errors.ts';
+import { API_BODY_LIMIT } from './limits.ts';
 import { registerPassthrough } from './passthrough.ts';
 import { Receiver, registerReceiver } from './receiver.ts';
 import { RequestLog, registerRequestLogRoutes } from './request-log.ts';
@@ -40,13 +41,13 @@ export async function buildApp({ config, logger = true, fetch: fetchImpl = fetch
     logger: logger === false ? false : { level: config.logLevel, ...(logger === true ? {} : { stream: logger }) },
     // nginx runs on the same host: the client IP is taken from X-Forwarded-For of loopback only
     trustProxy: ['127.0.0.1', '::1'],
-    bodyLimit: 1024 * 1024,
+    bodyLimit: API_BODY_LIMIT,
   });
   registerErrorHandler(app);
 
   const bus = new EventBus();
-  const log = new RequestLog(config.logLimit, bus);
-  const receiver = new Receiver(config.logLimit);
+  const log = new RequestLog(config.logLimit, config.logMaxBytes, bus);
+  const receiver = new Receiver(config.logLimit, config.logMaxBytes);
 
   app.get('/api/config', async (): Promise<ConfigView> => ({
     backend: 'plain',

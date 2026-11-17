@@ -657,12 +657,14 @@ export interface paths {
         put?: never;
         /**
          * Receiver of platform webhooks (called by the platform, not by the UI)
-         * @description Public: nginx must not put basic auth on this path. The backend reads the raw body bytes before any parsing and
-         *     verifies them by webhook-service docs 13.6 with the API secret (and `PSP_API_PREVIOUS_SECRET` if set), with the
-         *     semantics of the SDK's `verifyWebhook()` without `expectedMerchantId`. Every request is stored in the
-         *     received-webhooks log (and sent as the SSE event `webhook`) before the answer. The answer follows
-         *     `ReceiverSettings`: in `auto` — `200` on a valid webhook (also a duplicate), `401`/`400` by the verification
-         *     result; `failNext` and `fixed` override the status.
+         * @description Public: nginx must not put basic auth on this path. The backend reads the raw body bytes before any parsing,
+         *     at most 64 KB (the platform's largest webhook; a larger body is `413 example_payload_too_large` and is not
+         *     logged), and verifies them by webhook-service docs 13.6 with the API secret (and `PSP_API_PREVIOUS_SECRET` if
+         *     set), with the semantics of the SDK's `verifyWebhook()` without `expectedMerchantId`. Every other request is
+         *     stored in the received-webhooks log (and sent as the SSE event `webhook`) before the answer — a request whose
+         *     signature did not verify with its first 512 bytes of body only, in a separate ring of the last 100 (see
+         *     `ReceivedWebhook.body`). The answer follows `ReceiverSettings`: in `auto` — `200` on a valid webhook (also a
+         *     duplicate), `401`/`400` by the verification result; `failNext` and `fixed` override the status.
          */
         post: operations["receivePspWebhook"];
         delete?: never;
@@ -690,10 +692,13 @@ export interface components {
          *       or TLS failure. `details`: `{ cause }`.
          *     - `example_upstream_bad_response` (502) — an answer that is not the platform's: a redirect, a non-JSON error
          *       body, an empty success body. `details`: `{ status, requestId, bodyPreview }`.
+         *     - `example_payload_too_large` (413) — a body over the limit of its path: 64 KB (65 536 bytes) on
+         *       `POST /webhooks/psp`, 1 MB on `/api/*`. Refused while it arrives, before anything is parsed or logged.
+         *       `details`: `{ limitBytes }`.
          *     - `example_internal_error` (500) — a bug in the backend.
          * @enum {string}
          */
-        ExampleErrorCode: "example_invalid_request" | "example_not_found" | "example_upstream_timeout" | "example_upstream_unreachable" | "example_upstream_bad_response" | "example_internal_error";
+        ExampleErrorCode: "example_invalid_request" | "example_not_found" | "example_upstream_timeout" | "example_upstream_unreachable" | "example_upstream_bad_response" | "example_payload_too_large" | "example_internal_error";
         /** @description The same shape as the platform `ErrorResponse`, with an `example_*` code. */
         ExampleError: {
             errorCode: components["schemas"]["ExampleErrorCode"];
@@ -902,9 +907,16 @@ export interface components {
             headers: {
                 [key: string]: string;
             };
-            /** @description The raw body as received (UTF-8). */
+            /**
+             * @description The raw body as received (UTF-8). A request whose signature did not verify (`verify.signatureValid:
+             *     false`) may come from anyone: only its first 512 bytes are kept (`bodyTruncated`), and such requests
+             *     are kept apart — the last 100 — so they cannot push webhooks with a valid signature out of the log.
+             *     `verify.bodyBytes` is always the full size.
+             */
             body: string;
-            /** @description The body parsed as JSON; `null` when it is not JSON. */
+            /** @description `body` is only the first 512 bytes of the request body (a request without a valid signature). */
+            bodyTruncated: boolean;
+            /** @description The body parsed as JSON; `null` when it is not JSON or the signature did not verify (not parsed). */
             json: unknown;
             verify: components["schemas"]["WebhookVerification"];
             responseBody: string | null;
@@ -5717,6 +5729,15 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["ReceiverRefusal"];
+                };
+            };
+            /** @description The body is larger than 64 KB (`example_payload_too_large`); not logged, whatever `ReceiverSettings` say */
+            413: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ExampleError"];
                 };
             };
             /** @description The status set by `ReceiverSettings` (`fixed` or `failNext`) */

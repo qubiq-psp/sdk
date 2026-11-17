@@ -1,5 +1,5 @@
 // The request log: one entry per attempt sent to the platform (examples/contract/README.md, "Request log"), in
-// memory, at most APP_LOG_LIMIT entries. Entries hold the signature headers and the string to sign, never the secret.
+// memory, at most APP_LOG_LIMIT entries and APP_LOG_MAX_BYTES. Entries hold the signature headers and the string to sign, never the secret.
 import type { FastifyInstance } from 'fastify';
 import type { EventBus } from './bus.ts';
 import { invalidRequest, notFound } from './errors.ts';
@@ -90,8 +90,8 @@ export class RequestLog {
   readonly #entries: MemoryLog<RequestLogEntry>;
   readonly #bus: EventBus;
 
-  constructor(limit: number, bus: EventBus) {
-    this.#entries = new MemoryLog(limit);
+  constructor(limit: number, maxBytes: number, bus: EventBus) {
+    this.#entries = new MemoryLog(limit, maxBytes);
     this.#bus = bus;
   }
 

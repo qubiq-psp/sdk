@@ -37,6 +37,7 @@ describe('loadConfig', () => {
       port: 4600,
       uiDir: null,
       logLimit: 1000,
+      logMaxBytes: 32 * 1024 * 1024,
       logLevel: 'info',
     });
   });
@@ -49,6 +50,7 @@ describe('loadConfig', () => {
       HOST: '0.0.0.0',
       PORT: '8080',
       APP_LOG_LIMIT: '50',
+      APP_LOG_MAX_BYTES: '2097152',
       LOG_LEVEL: 'warn',
       PSP_API_PREVIOUS_SECRET: OTHER_SECRET,
     });
@@ -58,6 +60,7 @@ describe('loadConfig', () => {
       host: '0.0.0.0',
       port: 8080,
       logLimit: 50,
+      logMaxBytes: 2 * 1024 * 1024,
       logLevel: 'warn',
       previousApiSecret: OTHER_SECRET,
     });
@@ -71,6 +74,9 @@ describe('loadConfig', () => {
       'PSP_CHECKOUT_URL is required',
     ]);
     expect(problems({ ...BASE_ENV, PORT: '70000', APP_LOG_LIMIT: '0', LOG_LEVEL: 'loud' })).toHaveLength(3);
+    expect(problems({ ...BASE_ENV, APP_LOG_MAX_BYTES: '1000' })).toEqual([
+      'APP_LOG_MAX_BYTES must be an integer from 1048576 to 1073741824',
+    ]);
   });
 
   it('URLs: https or local http, origins only (the API URL only from the environment — MTU-002)', () => {

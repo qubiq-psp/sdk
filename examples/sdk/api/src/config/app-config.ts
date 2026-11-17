@@ -33,12 +33,17 @@ export interface AppConfig {
   readonly uiDir: string | null;
   /** `APP_LOG_LIMIT` — how many request-log entries and received webhooks are kept in memory. */
   readonly logLimit: number;
+  /** `APP_LOG_MAX_BYTES` — how many bytes of each log are kept (their JSON), default 32 MB. */
+  readonly logMaxBytes: number;
   /** `APP_UPSTREAM_TIMEOUT_MS` — timeout of one attempt to the platform (`timeoutMs` of the SDK), default 180 000. */
   readonly upstreamTimeoutMs: number;
   readonly logLevel: AppLogLevel;
 }
 
 export const APP_CONFIG = Symbol('APP_CONFIG');
+
+/** 32 MB per log by default. */
+export const DEFAULT_LOG_MAX_BYTES = 32 * 1024 * 1024;
 
 export const LOG_LEVELS = ['error', 'warn', 'log', 'debug', 'verbose'] as const;
 export type AppLogLevel = (typeof LOG_LEVELS)[number];
@@ -154,6 +159,8 @@ export function loadConfig(env: Env): AppConfig {
   const host = value('HOST') ?? '127.0.0.1';
   const port = integer('PORT', 4900, 1, 65535);
   const logLimit = integer('APP_LOG_LIMIT', 1000, 1, 100_000);
+  // Entries are counted by entry and by byte: 1000 large ones must not take the memory of the host
+  const logMaxBytes = integer('APP_LOG_MAX_BYTES', DEFAULT_LOG_MAX_BYTES, 1024 * 1024, 1024 * 1024 * 1024);
   // The longest timer Node.js takes
   const upstreamTimeoutMs = integer('APP_UPSTREAM_TIMEOUT_MS', 180_000, 1, 2_147_483_647);
 
@@ -199,6 +206,7 @@ export function loadConfig(env: Env): AppConfig {
     port,
     uiDir,
     logLimit,
+    logMaxBytes,
     upstreamTimeoutMs,
     logLevel,
   };

@@ -93,6 +93,7 @@ export const received: S['ReceivedWebhook'] = {
   remoteIp: null,
   headers: { 'x-webhook-event': 'invoice.paid' },
   body: '{"type":"invoice.paid"}',
+  bodyTruncated: false,
   json: { type: 'invoice.paid' },
   verify: {
     result: 'ok',

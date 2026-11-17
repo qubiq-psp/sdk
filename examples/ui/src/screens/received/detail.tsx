@@ -101,13 +101,21 @@ export function ReceivedDetailScreen() {
                 <CodeBlock value={headersText(w.headers)} maxHeight="max-h-80" />
               </Section>
               <Section title="Body">
+                {w.bodyTruncated && (
+                  <p className="mb-2 text-xs text-muted-foreground">
+                    The signature did not verify, so only the first 512 bytes of the {w.verify.bodyBytes} are kept: the
+                    receiver is open to anyone.
+                  </p>
+                )}
                 {w.json !== null && w.json !== undefined ? (
                   <JsonBlock value={w.json} maxHeight="max-h-80" />
                 ) : (
                   <CodeBlock value={prettyJson(w.body)} maxHeight="max-h-80" />
                 )}
                 <details className="mt-2">
-                  <summary className="cursor-pointer text-xs text-muted-foreground">Raw body, byte for byte</summary>
+                  <summary className="cursor-pointer text-xs text-muted-foreground">
+                    {w.bodyTruncated ? 'Raw body, its first 512 bytes' : 'Raw body, byte for byte'}
+                  </summary>
                   <CodeBlock value={w.body} maxHeight="max-h-60" />
                 </details>
               </Section>

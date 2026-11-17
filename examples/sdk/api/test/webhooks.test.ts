@@ -230,3 +230,46 @@ describe('received-webhooks log', () => {
     expect(await deliver(app)).toEqual({ status: 200, json: { received: true, duplicate: false } });
   });
 });
+
+describe('memory bounds of the received-webhooks log (the receiver is open to anyone)', () => {
+  it('a body over 64 KB: 413 example_payload_too_large, not logged', async () => {
+    const res = await deliver(app, 'x'.repeat(64 * 1024 + 1));
+    expect(res).toEqual({
+      status: 413,
+      json: {
+        errorCode: 'example_payload_too_large',
+        errorMessage: expect.any(String),
+        details: { limitBytes: 65_536 },
+      },
+    });
+    expect((await received()).total).toBe(0);
+  });
+
+  it('keeps 512 bytes of an unverified body, unparsed, in a ring of 100 that cannot push valid webhooks out', async () => {
+    const small = await startApp(env({ APP_LOG_LIMIT: '5' }), { now: () => clock * 1000 });
+    try {
+      expect((await deliver(small)).status).toBe(200);
+      const junk = JSON.stringify({ junk: 'y'.repeat(4000) });
+      for (let i = 0; i < 120; i++) {
+        const res = await deliver(small, junk, { 'Content-Type': 'application/json' });
+        expect(res.status).toBe(401);
+      }
+      const list = (await (await fetch(`${small.url}/api/received-webhooks?limit=200`)).json()) as {
+        items: Received[];
+        total: number;
+      };
+      expect(list.total).toBe(101);
+      expect(list.items.at(-1)?.webhookId).toBe(HEADERS['X-Webhook-Id']);
+      const one = (await (await fetch(`${small.url}/api/received-webhooks/${list.items[0]?.id ?? ''}`)).json()) as {
+        body: string;
+        bodyTruncated: boolean;
+        json: unknown;
+        verify: { bodyBytes: number };
+      };
+      expect(one).toMatchObject({ bodyTruncated: true, json: null, verify: { bodyBytes: junk.length } });
+      expect(one.body).toBe(junk.slice(0, 512));
+    } finally {
+      await small.close();
+    }
+  });
+});

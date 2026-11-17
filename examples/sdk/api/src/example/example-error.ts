@@ -11,6 +11,7 @@ const STATUS: Record<ExampleErrorCode, number> = {
   example_upstream_timeout: 504,
   example_upstream_unreachable: 502,
   example_upstream_bad_response: 502,
+  example_payload_too_large: 413,
   example_internal_error: 500,
 };
 
@@ -34,6 +35,11 @@ export class ExampleError extends Error {
 
   static notFound(message: string): ExampleError {
     return new ExampleError('example_not_found', message);
+  }
+
+  /** `413 example_payload_too_large` with `details: { limitBytes }`. */
+  static tooLarge(limitBytes: number): ExampleError {
+    return new ExampleError('example_payload_too_large', `The body is larger than ${limitBytes} bytes`, { limitBytes });
   }
 
   toBody(): ExampleErrorBody {

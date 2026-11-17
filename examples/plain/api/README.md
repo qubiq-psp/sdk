@@ -97,6 +97,7 @@ credential). Empty means unset.
 | `HOST`, `PORT`            | no       | `127.0.0.1`, `4600` | Where to listen (behind nginx)                                                                                                        |
 | `APP_UI_DIR`              | no       |                     | A built `examples/ui` to serve, with `index.html` for every other GET outside `/api` and `/webhooks`                                  |
 | `APP_LOG_LIMIT`           | no       | `1000`              | Request-log entries and received webhooks kept in memory, each                                                                        |
+| `APP_LOG_MAX_BYTES`       | no       | `33554432`          | Bytes of request-log entries and of received webhooks kept in memory, each (1 MB – 1 GB); the oldest go first                         |
 | `LOG_LEVEL`               | no       | `info`              | `fatal`…`trace`, `silent`                                                                                                             |
 
 A key and a secret of different networks are refused whatever `APP_TESTNET_ONLY` says.
@@ -140,6 +141,9 @@ CI builds this image on every pull request (`docker build` only, nothing is push
 - **No login of its own.** nginx basic auth protects everything except `POST /webhooks/psp`, which the platform calls
   and which is protected by the signature. merchant-test-ui's own login (and its bypass, MTU-001) is gone.
 - **Testnet only** with `APP_TESTNET_ONLY=true`.
+- **The open receiver is bounded.** `POST /webhooks/psp` reads at most 64 KB (`413` beyond). A request whose signature
+  does not verify keeps only 512 bytes of its body, unparsed, in a ring of the last 100 of its own, so junk cannot push
+  real webhooks out; both logs are bounded by `APP_LOG_LIMIT` entries and `APP_LOG_MAX_BYTES`.
 - **Bind to loopback.** `HOST` defaults to `127.0.0.1`; the client IP is trusted from `X-Forwarded-For` of loopback only.
 
 ## What it deliberately does not do

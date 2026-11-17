@@ -76,6 +76,7 @@ rule, never the value.
 | `HOST`, `PORT`            | `127.0.0.1`, `4900` | Where to listen                                                                                            |
 | `APP_UI_DIR`              | —                   | A built `examples/ui` to serve, with an SPA fallback for GETs outside `/api` and `/webhooks`               |
 | `APP_LOG_LIMIT`           | `1000`              | Request-log entries and received webhooks kept in memory                                                   |
+| `APP_LOG_MAX_BYTES`       | `33554432`          | Bytes of request-log entries and of received webhooks kept in memory, each (1 MB – 1 GB); oldest go first  |
 | `APP_UPSTREAM_TIMEOUT_MS` | `180000`            | Timeout of one attempt to the platform, ms (`timeoutMs` of the SDK; `payouts.create` waits at least 180 s) |
 | `LOG_LEVEL`               | `log`               | `error`, `warn`, `log`, `debug` (one line per SDK attempt), `verbose`                                      |
 
@@ -147,6 +148,11 @@ stores the event and processes it after answering; this example logs it.
 For QA the receiver also records every request (headers, raw body, verification details, the answer) in the
 received-webhooks log, sends it over SSE, and can be told to answer with a fixed status, a delay or a number of
 failures (`PUT /api/receiver`) to produce retries, `failed` deliveries and redeliveries on purpose.
+
+The path is open to anyone, so the receiver is bounded: it reads at most 64 KB of a body (the platform's largest
+webhook; `413 example_payload_too_large` beyond, not logged), and a request whose signature does not verify keeps only
+the first 512 bytes of its body, unparsed, in a ring of the last 100 of its own — junk cannot push real webhooks out.
+Both logs are bounded by `APP_LOG_LIMIT` entries and `APP_LOG_MAX_BYTES`.
 
 ## Retries and timeouts
 

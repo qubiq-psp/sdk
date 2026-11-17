@@ -43,6 +43,7 @@ export async function startReferenceBackend(env: ConformanceEnv): Promise<Starte
   const timeoutMs = Number(env.APP_UPSTREAM_TIMEOUT_MS || 180_000);
   const secrets = [env.PSP_API_SECRET, env.PSP_API_PREVIOUS_SECRET].filter(Boolean);
   const log: Json[] = [];
+  /** Newest first, verified and unverified together; at most 100 unverified ones are kept. */
   const webhooks: Json[] = [];
   const accepted = new Set<string>();
   let receiver = { mode: 'auto', status: 500, delayMs: 0, failNext: 0 };
@@ -200,8 +201,11 @@ export async function startReferenceBackend(env: ConformanceEnv): Promise<Starte
     const sig = h('x-webhook-signature');
     const now = Math.floor(Date.now() / 1000);
     const timestamp = ts && /^\d{1,12}$/.test(ts) ? Number(ts) : null;
-    const expected = ts !== undefined ? signWebhook(env.PSP_API_SECRET, ts, raw) : null;
-    const matched = ts !== undefined && sig ? secrets.findIndex((s) => safeEqual(signWebhook(s, ts, raw), sig)) : -1;
+    const expected = timestamp !== null && ts !== undefined ? signWebhook(env.PSP_API_SECRET, ts, raw) : null;
+    const matched =
+      timestamp !== null && ts !== undefined && sig
+        ? secrets.findIndex((s) => safeEqual(signWebhook(s, ts, raw), sig))
+        : -1;
     const base = {
       timestamp,
       skewSeconds: timestamp === null ? null : now - timestamp,
@@ -266,9 +270,12 @@ export async function startReferenceBackend(env: ConformanceEnv): Promise<Starte
       body = { errorCode: r, errorMessage: String(verify['message']) };
     }
     if (ok && status >= 200 && status < 300 && webhookId) accepted.add(webhookId);
+    const trusted = verify['signatureValid'] === true;
+    const rawBytes = Buffer.from(raw, 'utf8');
+    const kept = trusted ? raw : rawBytes.subarray(0, 512).toString('utf8');
     let json: Json | null = null;
     try {
-      json = JSON.parse(raw) as Json;
+      json = trusted ? (JSON.parse(raw) as Json) : null;
     } catch {
       json = null;
     }
@@ -293,13 +300,25 @@ export async function startReferenceBackend(env: ConformanceEnv): Promise<Starte
       headers: Object.fromEntries(
         Object.entries(req.headers).map(([k, v]) => [k, Array.isArray(v) ? v.join(', ') : String(v)]),
       ),
-      body: raw,
+      body: kept,
+      bodyTruncated: !trusted && rawBytes.length > 512,
       json,
       verify: verifyDetails,
       responseBody: JSON.stringify(body),
     };
     webhooks.unshift(entry);
-    const { remoteIp: _r, headers: _h, body: _b, json: _j, verify: _v, responseBody: _rb, ...item } = entry;
+    const unverified = webhooks.filter((w) => (w['verify'] as Json)['signatureValid'] !== true);
+    for (const old of unverified.slice(100)) webhooks.splice(webhooks.indexOf(old), 1);
+    const {
+      remoteIp: _r,
+      headers: _h,
+      body: _b,
+      bodyTruncated: _bt,
+      json: _j,
+      verify: _v,
+      responseBody: _rb,
+      ...item
+    } = entry;
     emit('webhook', item);
     if (receiver.delayMs) await new Promise((r) => setTimeout(r, receiver.delayMs));
     send(res, status, body);
@@ -422,7 +441,18 @@ export async function startReferenceBackend(env: ConformanceEnv): Promise<Starte
         .filter((w) => !q.get('invoiceId') || w['invoiceId'] === q.get('invoiceId'))
         .filter((w) => !q.get('event') || w['event'] === q.get('event'))
         .filter((w) => !q.get('result') || (q.get('result') === 'ok') === (w['verifyResult'] === 'ok'))
-        .map(({ remoteIp: _r, headers: _h, body: _b, json: _j, verify: _v, responseBody: _rb, ...item }) => item);
+        .map(
+          ({
+            remoteIp: _r,
+            headers: _h,
+            body: _b,
+            bodyTruncated: _bt,
+            json: _j,
+            verify: _v,
+            responseBody: _rb,
+            ...item
+          }) => item,
+        );
       return send(res, 200, page(items, q));
     }
     const hookId = /^\/api\/received-webhooks\/([^/]+)$/.exec(path)?.[1];
@@ -495,8 +525,23 @@ export async function startReferenceBackend(env: ConformanceEnv): Promise<Starte
   const sockets = new Set<Socket>();
   const server = createServer((req, res) => {
     const chunks: Buffer[] = [];
-    req.on('data', (c: Buffer) => chunks.push(c));
+    const limit = (req.url ?? '').startsWith('/webhooks/') ? 64 * 1024 : 1024 * 1024;
+    let size = 0;
+    let refused = false;
+    req.on('data', (c: Buffer) => {
+      size += c.length;
+      if (size > limit && !refused) {
+        refused = true;
+        send(res, 413, {
+          errorCode: 'example_payload_too_large',
+          errorMessage: `larger than ${limit} bytes`,
+          details: { limitBytes: limit },
+        });
+      }
+      if (!refused) chunks.push(c);
+    });
     req.on('end', () => {
+      if (refused) return;
       handle(req, Buffer.concat(chunks).toString('utf8'), res).catch((err: unknown) => {
         if (err instanceof HttpError)
           send(res, err.status, { errorCode: err.errorCode, errorMessage: err.message, details: err.details });

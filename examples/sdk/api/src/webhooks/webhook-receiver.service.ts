@@ -11,7 +11,7 @@ import type { components } from '@psp-examples/contract/types';
 import { PspClient, WebhookVerificationError, signWebhook, type WebhookEvent } from '@qubiq-psp/sdk';
 import { APP_CONFIG, type AppConfig } from '../config/app-config';
 import { RUNTIME, type Runtime } from '../config/config.module';
-import { BoundedLog } from '../example/bounded-log';
+import { BoundedLog, counter, mergedEntries, pageOf } from '../example/bounded-log';
 import { ExampleError, pageParams, stringParam } from '../example/example-error';
 
 export type ReceivedWebhook = components['schemas']['ReceivedWebhook'];
@@ -30,11 +30,20 @@ export interface ReceiverAnswer {
 const DEFAULT_SETTINGS: ReceiverSettings = { mode: 'auto', status: 500, delayMs: 0, failNext: 0 };
 /** Webhook ids remembered for the duplicate check. A shop keeps them in a table with a unique key. */
 const MAX_ACCEPTED_IDS = 10_000;
+/**
+ * Requests whose signature did not verify may come from anyone (the path has no login): the last 100 are kept apart,
+ * so junk cannot push real webhooks out of the log, with only the first 512 bytes of the body, not parsed.
+ */
+export const UNVERIFIED_LIMIT = 100;
+export const UNVERIFIED_BODY_BYTES = 512;
 
 @Injectable()
 export class WebhookReceiverService {
   readonly #logger = new Logger('Webhooks');
-  readonly #log: BoundedLog<ReceivedWebhook>;
+  /** Requests with a valid signature (from the platform): `APP_LOG_LIMIT` entries, `APP_LOG_MAX_BYTES`. */
+  readonly #verified: BoundedLog<ReceivedWebhook>;
+  /** Requests without one: the last {@link UNVERIFIED_LIMIT}. */
+  readonly #unverified: BoundedLog<ReceivedWebhook>;
   /** Ids of webhooks already accepted with 2xx, oldest first. */
   readonly #accepted = new Set<string>();
   #settings: ReceiverSettings = { ...DEFAULT_SETTINGS };
@@ -45,7 +54,9 @@ export class WebhookReceiverService {
     @Inject(APP_CONFIG) private readonly config: AppConfig,
     @Inject(RUNTIME) runtime: Runtime,
   ) {
-    this.#log = new BoundedLog(config.logLimit);
+    const seq = counter();
+    this.#verified = new BoundedLog(config.logLimit, config.logMaxBytes, seq);
+    this.#unverified = new BoundedLog(UNVERIFIED_LIMIT, config.logMaxBytes, seq);
     this.now = runtime.now ?? Date.now;
   }
 
@@ -109,7 +120,7 @@ export class WebhookReceiverService {
       body,
       webhookId,
     });
-    this.#log.add(entry);
+    (entry.verify.signatureValid ? this.#verified : this.#unverified).add(entry);
     return { status, body, delayMs: settings.delayMs };
   }
 
@@ -119,7 +130,8 @@ export class WebhookReceiverService {
     const webhookId = stringParam(query, 'webhookId');
     const event = stringParam(query, 'event');
     const result = stringParam(query, 'result', ['ok', 'failed'] as const);
-    const found = this.#log.page(
+    const found = pageOf(
+      mergedEntries(this.#verified, this.#unverified),
       (entry) =>
         (invoiceId === undefined || entry.invoiceId === invoiceId) &&
         (webhookId === undefined || entry.webhookId === webhookId) &&
@@ -132,21 +144,26 @@ export class WebhookReceiverService {
   }
 
   get(id: string): ReceivedWebhook {
-    const entry = this.#log.get(id);
+    const entry = this.#verified.get(id) ?? this.#unverified.get(id);
     if (!entry) throw ExampleError.notFound('No such received webhook (a restart clears the log)');
     return entry;
   }
 
   /** Clears the log and the duplicate memory. */
   clear(): void {
-    this.#log.clear();
+    this.#verified.clear();
+    this.#unverified.clear();
     this.#accepted.clear();
   }
 
   subscribe(listener: (item: ReceivedWebhookItem) => void): () => void {
-    return this.#log.subscribe((entry) => {
+    const each = (entry: ReceivedWebhook): void => {
       listener(toItem(entry));
-    });
+    };
+    const off = [this.#verified.subscribe(each), this.#unverified.subscribe(each)];
+    return () => {
+      for (const unsubscribe of off) unsubscribe();
+    };
   }
 
   getSettings(): ReceiverSettings {
@@ -196,12 +213,16 @@ export class WebhookReceiverService {
         ? 'previous'
         : null;
 
-    const text = rawBody.toString('utf8');
+    // A request without a valid signature may come from anyone: only the start of its body is kept, not parsed
+    const kept = signedWith !== null ? rawBody : rawBody.subarray(0, UNVERIFIED_BODY_BYTES);
+    const text = kept.toString('utf8');
     let json: unknown = null;
-    try {
-      json = JSON.parse(text);
-    } catch {
-      json = null;
+    if (signedWith !== null) {
+      try {
+        json = JSON.parse(text);
+      } catch {
+        json = null;
+      }
     }
     const invoice = invoiceOf(json);
     const attemptHeader = headers['x-webhook-attempt'];
@@ -223,6 +244,7 @@ export class WebhookReceiverService {
       remoteIp: input.remoteIp,
       headers,
       body: text,
+      bodyTruncated: kept.length < rawBody.length,
       json,
       verify: {
         result: input.result,
@@ -245,6 +267,7 @@ function toItem(entry: ReceivedWebhook): ReceivedWebhookItem {
     remoteIp: _remoteIp,
     headers: _headers,
     body: _body,
+    bodyTruncated: _bodyTruncated,
     json: _json,
     verify: _verify,
     responseBody: _responseBody,

@@ -23,7 +23,7 @@ export class RequestLogService {
   readonly #log: BoundedLog<RequestLogEntry>;
 
   constructor(@Inject(APP_CONFIG) config: AppConfig) {
-    this.#log = new BoundedLog(config.logLimit);
+    this.#log = new BoundedLog(config.logLimit, config.logMaxBytes);
   }
 
   /**

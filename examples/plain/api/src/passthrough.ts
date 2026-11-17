@@ -7,6 +7,7 @@ import routes from '@psp-examples/contract/routes.json' with { type: 'json' };
 import type { FastifyInstance, FastifyReply, FastifyRequest } from 'fastify';
 import type { Config } from './config.ts';
 import { ExampleHttpError, invalidRequest } from './errors.ts';
+import { API_BODY_LIMIT } from './limits.ts';
 import { callPlatform, type PlatformAttempt } from './platform.ts';
 import { toEntry, type RequestLog } from './request-log.ts';
 
@@ -28,8 +29,6 @@ export const PASSTHROUGH_ROUTES: PassthroughRoute[] = routes
 const PASSED_HEADERS = ['X-Request-Id', 'X-Client-Request-Id', 'X-Api-Key-Deprecated', 'Retry-After'];
 const CLIENT_REQUEST_ID_RE = /^[\x21-\x7E]{1,128}$/;
 const PREVIEW_CHARS = 500;
-/** Request bodies up to 1 MB reach the platform, which itself refuses more than 64 KB (`413 payload_too_large`). */
-const BODY_LIMIT = 1024 * 1024;
 
 export interface PassthroughDeps {
   config: Config;
@@ -43,7 +42,7 @@ export async function registerPassthrough(app: FastifyInstance, deps: Passthroug
   await app.register(async (scope) => {
     // Bodies stay raw bytes in this scope: they are forwarded and signed exactly as received
     scope.removeAllContentTypeParsers();
-    scope.addContentTypeParser('*', { parseAs: 'buffer', bodyLimit: BODY_LIMIT }, (_req, body, done) => {
+    scope.addContentTypeParser('*', { parseAs: 'buffer', bodyLimit: API_BODY_LIMIT }, (_req, body, done) => {
       done(null, body);
     });
     // Every passthrough answer carries the id of the call — also a backend-own error before the platform call

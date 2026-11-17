@@ -7,8 +7,13 @@ import { WEBHOOK_PATH } from '../webhooks/webhook-receiver.controller';
 import { ExampleError } from './example-error';
 import { assignCallId } from './passthrough';
 
-/** The receiver reads at most 1 MB; a webhook body is a few KB. */
-const BODY_LIMIT = '1mb';
+/** `/api/*` bodies up to 1 MB reach the platform, which itself refuses more than 64 KB (`413 payload_too_large`). */
+const API_BODY_LIMIT = 1024 * 1024;
+/**
+ * The receiver reads at most 64 KB, the platform's largest webhook: the path is open to anyone (no basic auth), so a
+ * larger body is refused while it arrives (`413`) and never logged.
+ */
+export const WEBHOOK_BODY_LIMIT = 64 * 1024;
 
 export function configureHttp(app: NestExpressApplication, config: AppConfig): void {
   app.disable('x-powered-by');
@@ -19,20 +24,23 @@ export function configureHttp(app: NestExpressApplication, config: AppConfig): v
 
   app.use(assignCallId);
   // The webhook signature covers the raw bytes: this path gets them untouched as a Buffer, whatever the Content-Type
-  app.use(WEBHOOK_PATH, refuseUnreadable(express.raw({ type: () => true, limit: BODY_LIMIT })));
+  app.use(
+    WEBHOOK_PATH,
+    refuseUnreadable(express.raw({ type: () => true, limit: WEBHOOK_BODY_LIMIT }), WEBHOOK_BODY_LIMIT),
+  );
   // Any body of an /api request is JSON. strict: false — a passthrough body is forwarded as parsed, the platform
   // judges it (a bare `5` is valid JSON). Without a body req.body stays undefined: nothing is sent on.
   const json = express.json({
     type: () => true,
     strict: false,
-    limit: BODY_LIMIT,
+    limit: API_BODY_LIMIT,
     verify: (req: Request & { hadBody?: boolean }, _res, buf) => {
       req.hadBody = buf.length > 0;
     },
   });
   app.use(
     '/api',
-    refuseUnreadable(json),
+    refuseUnreadable(json, API_BODY_LIMIT),
     (req: Request & { hadBody?: boolean }, _res: Response, next: NextFunction) => {
       // body-parser turns an empty body (`Content-Length: 0`) into {}: that is no body
       if (req.hadBody !== true) req.body = undefined;
@@ -43,8 +51,11 @@ export function configureHttp(app: NestExpressApplication, config: AppConfig): v
   if (config.uiDir !== null) serveUi(app, config.uiDir);
 }
 
-/** A body that cannot be read (not JSON, too large) is `400 example_invalid_request`, before any platform call. */
-function refuseUnreadable(parser: RequestHandler): RequestHandler {
+/**
+ * A body over the limit is `413 example_payload_too_large`, one that cannot be read otherwise (not JSON)
+ * `400 example_invalid_request` — before any platform call.
+ */
+function refuseUnreadable(parser: RequestHandler, limitBytes: number): RequestHandler {
   return (req, res, next) => {
     void parser(req, res, (err?: unknown) => {
       if (err === undefined || err === null) {
@@ -52,7 +63,7 @@ function refuseUnreadable(parser: RequestHandler): RequestHandler {
         return;
       }
       const tooLarge = (err as { type?: unknown }).type === 'entity.too.large';
-      const error = ExampleError.invalid('body', tooLarge ? `is larger than ${BODY_LIMIT}` : 'is not valid JSON');
+      const error = tooLarge ? ExampleError.tooLarge(limitBytes) : ExampleError.invalid('body', 'is not valid JSON');
       res.status(error.status).json(error.toBody());
     });
   };

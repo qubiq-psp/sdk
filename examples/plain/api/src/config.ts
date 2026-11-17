@@ -28,12 +28,16 @@ export interface Config {
   uiDir: string | null;
   /** How many request-log entries and received webhooks are kept in memory, each. */
   logLimit: number;
+  /** How many bytes of request-log entries and of received webhooks are kept in memory, each. */
+  logMaxBytes: number;
   logLevel: string;
 }
 
 const KEY_RE = /^psp_pk_(test_|live_)?[0-9A-Za-z]{24}$/;
 const SECRET_RE = /^psp_sk_(test_|live_)?[0-9A-Za-z]{36}$/;
 const LOCAL_HOSTS = new Set(['localhost', '127.0.0.1', '[::1]']);
+/** 32 MB per log by default. */
+export const DEFAULT_LOG_MAX_BYTES = 32 * 1024 * 1024;
 const LOG_LEVELS = ['fatal', 'error', 'warn', 'info', 'debug', 'trace', 'silent'];
 
 export const netOf = (credential: string): Net => (/^psp_[ps]k_live_/.test(credential) ? 'mainnet' : 'testnet');
@@ -135,6 +139,8 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): Config {
   const host = get('HOST') ?? '127.0.0.1';
   const port = integer('PORT', 4600, 1, 65_535);
   const logLimit = integer('APP_LOG_LIMIT', 1000, 1, 100_000);
+  // Entries are counted by entry and by byte: 1000 large ones must not take the memory of the host
+  const logMaxBytes = integer('APP_LOG_MAX_BYTES', DEFAULT_LOG_MAX_BYTES, 1024 * 1024, 1024 * 1024 * 1024);
   const logLevel = get('LOG_LEVEL') ?? 'info';
   if (!LOG_LEVELS.includes(logLevel)) problems.push(`LOG_LEVEL must be one of ${LOG_LEVELS.join(', ')}`);
 
@@ -185,6 +191,7 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): Config {
     port,
     uiDir,
     logLimit,
+    logMaxBytes,
     logLevel,
   };
 }

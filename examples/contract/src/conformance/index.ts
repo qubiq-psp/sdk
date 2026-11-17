@@ -8,7 +8,9 @@ import {
   TEST_KEY,
   TEST_PREVIOUS_SECRET,
   TEST_SECRET,
+  fakeUuid,
   startFakeGateway,
+  webhookBody,
   type FakeGateway,
   type RecordedRequest,
   type SentWebhook,
@@ -55,6 +57,12 @@ export interface ConformanceOptions {
   /** Timeout of one test, ms. Default 20 000. */
   testTimeoutMs?: number;
 }
+
+/** The receiver reads at most this much of a body (the platform's largest webhook); a larger one is `413`. */
+export const WEBHOOK_BODY_LIMIT = 64 * 1024;
+/** Requests without a valid signature: how many are kept, and how much of their body. */
+export const UNVERIFIED_LIMIT = 100;
+export const UNVERIFIED_BODY_BYTES = 512;
 
 export const CHECKOUT_URL = 'https://pay.conformance.example';
 export const PUBLIC_URL = 'https://backend.conformance.example';
@@ -701,7 +709,21 @@ export function defineConformanceSuite(options: ConformanceOptions): void {
         expect(one.status).toBe(200);
         expectValid(validateResponse('getReceivedWebhook', 200, one.contentType, one.json), 'received webhook');
         const json = one.json as Record<string, unknown>;
-        expect(json['body'], 'the raw body as received').toBe(sent.request.body);
+        const bytes = Buffer.from(sent.request.body, 'utf8');
+        expect((json['verify'] as { bodyBytes?: unknown }).bodyBytes, 'verify.bodyBytes: the full size').toBe(
+          bytes.length,
+        );
+        if ((json['verify'] as { signatureValid?: unknown }).signatureValid === true) {
+          expect(json['body'], 'the raw body as received').toBe(sent.request.body);
+          expect(json['bodyTruncated']).toBe(false);
+        } else {
+          // From anyone: only the start of the body, not parsed
+          expect(json['body'], 'the first 512 bytes of an unverified body').toBe(
+            bytes.subarray(0, UNVERIFIED_BODY_BYTES).toString('utf8'),
+          );
+          expect(json['bodyTruncated']).toBe(bytes.length > UNVERIFIED_BODY_BYTES);
+          expect(json['json'], 'an unverified body is not parsed').toBeNull();
+        }
         expect(json['responseStatus']).toBe(sent.status);
         expectNoSecret(one.text, 'a received webhook');
         return json;
@@ -744,11 +766,18 @@ export function defineConformanceSuite(options: ConformanceOptions): void {
         expect(sent.status).toBe(401);
         expect(sent.json).toMatchObject({ errorCode: 'signature_mismatch' });
         expectValid(validateSchema('ReceiverRefusal', sent.json), 'receiver refusal');
-        expect(await received(sent)).toMatchObject({
+        const entry = await received(sent);
+        expect(entry).toMatchObject({
           verifyResult: 'signature_mismatch',
           signedWith: null,
+          invoiceId: null,
+          bodyTruncated: true,
+          json: null,
           verify: { signatureValid: false },
         });
+        expect(sent.request.body.length, 'the suite sends more than 512 bytes here').toBeGreaterThan(
+          UNVERIFIED_BODY_BYTES,
+        );
       });
 
       it('an old timestamp: 401 timestamp_out_of_window, logged with a valid signature', async () => {
@@ -837,6 +866,33 @@ export function defineConformanceSuite(options: ConformanceOptions): void {
         }
       });
 
+      it('a body over 64 KB: 413 example_payload_too_large, not logged; a signed 64 KB webhook is accepted', async () => {
+        const before = (await call('/api/received-webhooks?limit=1')).json as { total: number };
+        const padTo = (size: number, id: string): string => {
+          const body = webhookBody('invoice.paid', id, { pad: '' });
+          return webhookBody('invoice.paid', id, { pad: 'x'.repeat(size - Buffer.byteLength(body)) });
+        };
+        const tooLargeId = fakeUuid(`too-large:${Date.now()}`);
+        const tooLarge = await gateway.sendWebhook(hookUrl(), {
+          id: tooLargeId,
+          body: padTo(WEBHOOK_BODY_LIMIT + 1, tooLargeId),
+        });
+        await expectExampleError(
+          { ...tooLarge, contentType: tooLarge.headers.get('content-type') ?? '', callId: null },
+          413,
+          'example_payload_too_large',
+        );
+        expect(tooLarge.json).toMatchObject({ details: { limitBytes: WEBHOOK_BODY_LIMIT } });
+        const after = (await call('/api/received-webhooks?limit=1')).json as { total: number };
+        expect(after.total, 'a refused oversized body is not logged').toBe(before.total);
+
+        const fullId = fakeUuid(`full-size:${Date.now()}`);
+        const full = await gateway.sendWebhook(hookUrl(), { id: fullId, body: padTo(WEBHOOK_BODY_LIMIT, fullId) });
+        expect(Buffer.byteLength(full.request.body)).toBe(WEBHOOK_BODY_LIMIT);
+        expect(full.status).toBe(200);
+        expect(await received(full)).toMatchObject({ verifyResult: 'ok', bodyTruncated: false });
+      });
+
       it('the log filters failed webhooks and can be cleared', async () => {
         const failed = await call('/api/received-webhooks?result=failed&limit=200');
         const items = (failed.json as { items: { verifyResult: string }[] }).items;
@@ -845,6 +901,22 @@ export function defineConformanceSuite(options: ConformanceOptions): void {
         const cleared = await call('/api/received-webhooks', { method: 'DELETE' });
         expect(cleared.status).toBe(204);
         expect((await call('/api/received-webhooks')).json).toMatchObject({ items: [], total: 0 });
+      });
+
+      it('unsigned requests keep a ring of their own: a flood does not push a valid webhook out', async () => {
+        const valid = await gateway.sendWebhook(hookUrl());
+        expect(valid.status).toBe(200);
+        const flood = UNVERIFIED_LIMIT + 50;
+        for (let i = 0; i < flood; i++) {
+          const junk = await gateway.sendWebhook(hookUrl(), { omitHeaders: ['x-webhook-signature'] });
+          expect(junk.status).toBe(401);
+        }
+        expect(await received(valid), 'the valid webhook is still in the log').toMatchObject({ verifyResult: 'ok' });
+        const failed = (await call('/api/received-webhooks?result=failed&limit=1')).json as { total: number };
+        expect(failed.total, `the last ${UNVERIFIED_LIMIT} unsigned requests are kept`).toBe(UNVERIFIED_LIMIT);
+        const all = (await call('/api/received-webhooks?limit=1')).json as { total: number };
+        expect(all.total).toBe(UNVERIFIED_LIMIT + 1);
+        expect((await call('/api/received-webhooks', { method: 'DELETE' })).status).toBe(204);
       });
     });
 

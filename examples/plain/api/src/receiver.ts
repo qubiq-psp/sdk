@@ -7,13 +7,16 @@ import type { FastifyInstance, FastifyRequest } from 'fastify';
 import type { EventBus } from './bus.ts';
 import type { Config } from './config.ts';
 import { invalidRequest, notFound } from './errors.ts';
-import { MemoryLog } from './memory-log.ts';
+import { WEBHOOK_BODY_LIMIT } from './limits.ts';
+import { counter, MemoryLog, merged, pageOf } from './memory-log.ts';
 import { pageParams, singleQuery } from './request-log.ts';
 import type { ReceivedWebhook, ReceivedWebhookItem, ReceivedWebhookPage, ReceiverSettings } from './types.ts';
 import { REFUSAL_STATUS, verifyWebhook } from './webhook-verify.ts';
 
-/** The platform sends up to 64 KB; a receiver must accept at least that. */
-const WEBHOOK_BODY_LIMIT = 1024 * 1024;
+/** Requests whose signature did not verify are kept apart, the last 100, so junk cannot push real webhooks out… */
+export const UNVERIFIED_LIMIT = 100;
+/** …and only the first 512 bytes of their body: they come from anyone. */
+export const UNVERIFIED_BODY_BYTES = 512;
 
 export const DEFAULT_RECEIVER_SETTINGS: ReceiverSettings = { mode: 'auto', status: 500, delayMs: 0, failNext: 0 };
 
@@ -36,21 +39,28 @@ const ITEM_KEYS = [
 export const toWebhookItem = (webhook: ReceivedWebhook): ReceivedWebhookItem =>
   Object.fromEntries(ITEM_KEYS.map((key) => [key, webhook[key]])) as ReceivedWebhookItem;
 
-/** Received webhooks in memory, the duplicate memory and the receiver settings. */
+/**
+ * Received webhooks in memory, the duplicate memory and the receiver settings. Requests with a valid signature (from
+ * the platform) and without one (from anyone) are two logs: the first keeps `limit` entries and `maxBytes`, the second
+ * {@link UNVERIFIED_LIMIT} entries with a cut body. The list shows both, newest first.
+ */
 export class Receiver {
-  readonly #log: MemoryLog<ReceivedWebhook>;
+  readonly #verified: MemoryLog<ReceivedWebhook>;
+  readonly #unverified: MemoryLog<ReceivedWebhook>;
   /** `X-Webhook-Id`s of valid webhooks answered with 2xx, oldest first. */
   readonly #accepted = new Set<string>();
   readonly #limit: number;
   settings: ReceiverSettings = { ...DEFAULT_RECEIVER_SETTINGS };
 
-  constructor(limit: number) {
-    this.#log = new MemoryLog(limit);
+  constructor(limit: number, maxBytes = Number.POSITIVE_INFINITY) {
+    const seq = counter();
+    this.#verified = new MemoryLog(limit, maxBytes, seq);
+    this.#unverified = new MemoryLog(UNVERIFIED_LIMIT, maxBytes, seq);
     this.#limit = limit;
   }
 
   add(webhook: ReceivedWebhook): void {
-    this.#log.add(webhook);
+    (webhook.verify.signatureValid ? this.#verified : this.#unverified).add(webhook);
   }
 
   isDuplicate(webhookId: string): boolean {
@@ -67,15 +77,16 @@ export class Receiver {
   }
 
   get(id: string): ReceivedWebhook | undefined {
-    return this.#log.get(id);
+    return this.#verified.get(id) ?? this.#unverified.get(id);
   }
 
   page(filter: (w: ReceivedWebhook) => boolean, page: number, limit: number) {
-    return this.#log.page(filter, page, limit);
+    return pageOf(merged(this.#verified, this.#unverified), filter, page, limit);
   }
 
   clear(): void {
-    this.#log.clear();
+    this.#verified.clear();
+    this.#unverified.clear();
     this.#accepted.clear();
   }
 }
@@ -135,7 +146,8 @@ export interface ReceiverDeps {
 
 export async function registerReceiver(app: FastifyInstance, { config, receiver, bus }: ReceiverDeps): Promise<void> {
   await app.register(async (scope) => {
-    // The body is read as raw bytes before any JSON parsing, whatever the Content-Type: the signature is over them
+    // The body is read as raw bytes before any JSON parsing, whatever the Content-Type: the signature is over them.
+    // A body over 64 KB is refused while it arrives (413) and not logged
     scope.removeAllContentTypeParsers();
     scope.addContentTypeParser('*', { parseAs: 'buffer', bodyLimit: WEBHOOK_BODY_LIMIT }, (_req, body, done) => {
       done(null, body);
@@ -175,12 +187,17 @@ export async function registerReceiver(app: FastifyInstance, { config, receiver,
         receiver.markAccepted(webhookId);
       }
 
-      const text = body.toString('utf8');
+      // A request without a valid signature may come from anyone: only the start of its body is kept, not parsed
+      const trusted = verify.signatureValid;
+      const kept = trusted ? body : body.subarray(0, UNVERIFIED_BODY_BYTES);
+      const text = kept.toString('utf8');
       let json: unknown = null;
-      try {
-        json = JSON.parse(text) as unknown;
-      } catch {
-        // not JSON: stored as text only
+      if (trusted) {
+        try {
+          json = JSON.parse(text) as unknown;
+        } catch {
+          // not JSON: stored as text only
+        }
       }
       const responseBody = status === 204 || status === 304 ? null : JSON.stringify(answer);
       const webhook: ReceivedWebhook = {
@@ -198,6 +215,7 @@ export async function registerReceiver(app: FastifyInstance, { config, receiver,
         remoteIp: req.ip,
         headers: flatHeaders(req.headers),
         body: text,
+        bodyTruncated: kept.length < body.length,
         json,
         verify: {
           result: verify.result,

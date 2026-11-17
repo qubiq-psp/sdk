@@ -199,3 +199,60 @@ describe('received-webhooks log', () => {
     expect(page.items[0]?.webhookId).toBe('dd000000-0000-4000-8000-000000000005');
   });
 });
+
+describe('memory bounds of the received-webhooks log (the receiver is open to anyone)', () => {
+  it('a body over 64 KB: 413 example_payload_too_large, not logged', async () => {
+    const { app, list } = await setup();
+    const res = await app.inject({
+      method: 'POST',
+      url: '/webhooks/psp',
+      headers: { 'content-type': 'application/json' },
+      payload: 'x'.repeat(64 * 1024 + 1),
+    });
+    expect(res.statusCode).toBe(413);
+    expect(res.json<ExampleError>()).toEqual({
+      errorCode: 'example_payload_too_large',
+      errorMessage: expect.any(String),
+      details: { limitBytes: 65_536 },
+    });
+    expect((await list()).total).toBe(0);
+  });
+
+  it('keeps 512 bytes of an unverified body, unparsed, in a ring of 100 that cannot push valid webhooks out', async () => {
+    const { app, hook, list } = await setup({ APP_LOG_LIMIT: '5' });
+    await hook('ee000000-0000-4000-8000-000000000001');
+    const junk = JSON.stringify({ junk: 'y'.repeat(4000) });
+    for (let i = 0; i < 120; i++) {
+      const res = await app.inject({
+        method: 'POST',
+        url: '/webhooks/psp',
+        headers: { 'content-type': 'application/json', 'x-webhook-timestamp': '1', 'x-webhook-signature': 'v1=00' },
+        payload: junk,
+      });
+      expect(res.statusCode).toBe(401);
+    }
+    const page = await list('?limit=200');
+    expect(page.total).toBe(101);
+    expect(page.items.at(-1)?.webhookId).toBe('ee000000-0000-4000-8000-000000000001');
+    const one = (
+      await app.inject({ method: 'GET', url: `/api/received-webhooks/${page.items[0]!.id}` })
+    ).json<ReceivedWebhook>();
+    expect(one).toMatchObject({ bodyTruncated: true, json: null, verify: { bodyBytes: junk.length } });
+    expect(one.body).toBe(junk.slice(0, 512));
+  });
+
+  it('APP_LOG_MAX_BYTES: the oldest valid webhooks go when the bytes run out', async () => {
+    const { hook, list } = await setup({ APP_LOG_MAX_BYTES: String(1024 * 1024) });
+    const big = (id: string) => paidBody(id).replace('"version":1', `"pad":"${'z'.repeat(60_000)}","version":1`);
+    for (let i = 10; i < 40; i++) {
+      const id = `ef000000-0000-4000-8000-0000000000${i}`;
+      const body = big(id);
+      expect((await hook(id, body, signedHeaders(id, body))).statusCode).toBe(200);
+    }
+    const page = await list('?limit=200');
+    // Each entry holds the body twice (text and parsed JSON): about 120 KB, so 8 fit into 1 MB
+    expect(page.total).toBeGreaterThanOrEqual(7);
+    expect(page.total).toBeLessThanOrEqual(9);
+    expect(page.items[0]?.webhookId).toBe('ef000000-0000-4000-8000-000000000039');
+  });
+});

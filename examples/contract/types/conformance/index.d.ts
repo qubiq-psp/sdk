@@ -25,6 +25,11 @@ export interface ConformanceOptions {
     /** Timeout of one test, ms. Default 20 000. */
     testTimeoutMs?: number;
 }
+/** The receiver reads at most this much of a body (the platform's largest webhook); a larger one is `413`. */
+export declare const WEBHOOK_BODY_LIMIT: number;
+/** Requests without a valid signature: how many are kept, and how much of their body. */
+export declare const UNVERIFIED_LIMIT = 100;
+export declare const UNVERIFIED_BODY_BYTES = 512;
 export declare const CHECKOUT_URL = "https://pay.conformance.example";
 export declare const PUBLIC_URL = "https://backend.conformance.example";
 /** The per-attempt platform timeout the suite gives a backend; the timeout test makes the platform slower. */
