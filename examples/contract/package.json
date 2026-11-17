@@ -49,7 +49,7 @@
     "yaml": "^2.8"
   },
   "peerDependencies": {
-    "vitest": "^3.2"
+    "vitest": "^4.1.12"
   },
   "peerDependenciesMeta": {
     "vitest": {
@@ -61,6 +61,6 @@
     "@types/node": "^22",
     "openapi-typescript": "^7.13",
     "typescript": "~5.9.3",
-    "vitest": "^3.2"
+    "vitest": "^4.1.12"
   }
 }

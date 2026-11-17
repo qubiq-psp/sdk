@@ -7,6 +7,5 @@ export default defineConfig({
     testTimeout: 15_000,
     // The machine is shared with other runs: two workers are enough
     maxWorkers: 2,
-    minWorkers: 1,
   },
 });
