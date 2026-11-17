@@ -18,6 +18,19 @@ Start with the README of each package: [`packages/node`](packages/node/README.md
 [`packages/react`](packages/react/README.md). What changed in each version: [`@qubiq-psp/sdk`](packages/node/CHANGELOG.md),
 [`@qubiq-psp/react`](packages/react/CHANGELOG.md).
 
+## Versions
+
+The two packages are versioned independently: each follows [Semantic Versioning](https://semver.org/) and is released
+when it changes. Any version of `@qubiq-psp/sdk` works with any version of `@qubiq-psp/react` — they do not depend on
+each other; each follows the platform:
+
+| Package            | Follows                                                                           |
+| ------------------ | --------------------------------------------------------------------------------- |
+| `@qubiq-psp/sdk`   | Merchant API `v1` (`/api/v1/*`), webhook signature `v1`, payment widget link `v1` |
+| `@qubiq-psp/react` | the payment page protocol `v1` (the widget link and its `postMessage` events)     |
+
+When a change of the platform needs a matching pair, this table says which versions belong together.
+
 ## Security
 
 The API secret lives only on the merchant's server: never in the frontend, the repository or logs. Report a
