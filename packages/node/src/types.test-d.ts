@@ -35,7 +35,9 @@ import type {
   Operation,
   OperationDestination,
   OperationFeeDetails,
+  OperationFlow,
   OperationNetworkFee,
+  OperationType,
   OperationsPeriodParams,
   OperationsSummary,
   OperationsSummaryItem,
@@ -126,6 +128,12 @@ describe('responses', () => {
     expectTypeOf<Same<OperationsSummary, Json<'getMerchantOperationsSummary', 200>>>().toEqualTypeOf<true>();
     expectTypeOf<Same<StatementItem, Schemas['V1StatementItem']>>().toEqualTypeOf<true>();
     expectTypeOf<Same<Statement, Json<'getMerchantOperationsStatement', 200>>>().toEqualTypeOf<true>();
+    expectTypeOf<OperationType>().toEqualTypeOf<Schemas['V1Operation']['type']>();
+    expectTypeOf<OperationFlow>().toEqualTypeOf<Schemas['V1Operation']['flow']>();
+    // The CSV statement is plain text: `getStatement({ …, format: 'csv' })` returns it as a string.
+    expectTypeOf<
+      operations['getMerchantOperationsStatement']['responses'][200]['content']['text/csv']
+    >().toEqualTypeOf<string>();
   });
 
   it('deposits', () => {
@@ -193,6 +201,8 @@ describe('query parameters', () => {
     expectTypeOf<Query<'listDeliveries'>>().toExtend<ListDeliveriesParams>();
     expectTypeOf<Query<'getMerchantBalances'>>().toExtend<GetBalancesParams>();
     expectTypeOf<Query<'listMerchantOperations'>>().toExtend<ListOperationsParams>();
+    // The `type` filter takes exactly the values of the spec (any other one is `400 invalid_schema`).
+    expectTypeOf<NonNullable<Query<'listMerchantOperations'>['type']>[number]>().toEqualTypeOf<OperationType>();
     expectTypeOf<Query<'getMerchantOperationsSummary'>>().toExtend<OperationsPeriodParams>();
     expectTypeOf<Query<'getMerchantOperationsStatement'>>().toExtend<StatementParams>();
     expectTypeOf<Query<'listMerchantDeposits'>>().toExtend<ListDepositsParams>();

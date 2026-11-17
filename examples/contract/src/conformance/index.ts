@@ -465,6 +465,14 @@ export function defineConformanceSuite(options: ConformanceOptions): void {
         expect(res.json).toMatchObject({ errorCode: 'invalid_schema', details: { fields: [{ field: 'color' }] } });
       });
 
+      it('an operation type outside the spec is forwarded; the platform 400 invalid_schema passes through', async () => {
+        const { res, sent } = await passthrough('listMerchantOperations', '/api/operations?type=deposit_credit,sweep');
+        await expectPassthrough('listMerchantOperations', res, sent);
+        expect(sent.at(-1)?.query).toContainEqual(['type', 'deposit_credit,sweep']);
+        expect(res.status).toBe(400);
+        expect(res.json).toMatchObject({ errorCode: 'invalid_schema', details: { fields: [{ field: 'type' }] } });
+      });
+
       it('an unknown body field is forwarded; the platform 400 invalid_schema passes through', async () => {
         const body = { externalId: 'conformance-order-3', network: 'tron', asset: 'USDT', amount: '1', color: 'green' };
         const { res, sent } = await passthrough('createInvoice', '/api/invoices', { method: 'POST', body });

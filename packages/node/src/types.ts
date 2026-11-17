@@ -503,21 +503,18 @@ export interface GetBalancesParams {
 
 // ---------------------------------------------------------------- operations
 
-/** Type of an operation of the ledger, e.g. `deposit_credit`, `payout_hold`, `payout_capture`. */
+/**
+ * Type of an operation of the ledger, e.g. `deposit_credit`, `payout_hold`, `payout_capture`: only the types that move
+ * an account of the merchant. The API answers `400 invalid_schema` to a `type` filter with any other value.
+ */
 export type OperationType =
   | 'deposit_credit'
   | 'deposit_hold'
-  | 'deposit_unallocated'
-  | 'deposit_small'
   | 'aml_release'
   | 'aml_dirty_assign'
   | 'aml_dirty_release'
   | 'aml_dirty_withdrawal'
   | 'unallocated_assign'
-  | 'unallocated_income'
-  | 'sweep'
-  | 'sweep_unrecognized'
-  | 'network_fee'
   | 'payout_hold'
   | 'payout_release'
   | 'payout_capture'
@@ -529,22 +526,15 @@ export type OperationType =
   | 'cross_network_payout_capture'
   | 'cross_network_payout_release'
   | 'cross_network_payout_reversal'
-  | 'wallet_transfer'
-  | 'owner_funding'
-  | 'owner_withdrawal'
-  | 'internetwork_settle'
   | 'merchant_credit'
   | 'merchant_debit'
   | 'merchant_freeze'
   | 'merchant_unfreeze'
   | 'fee_refund'
-  | 'issuer_freeze'
-  | 'custody_correction'
-  | 'writeoff'
   | 'reversal';
 
-/** Direction: `in` — incoming, `out` — withdrawal, `hold` — hold, `adjust` — adjustment; `custody`, `pnl` — internal. */
-export type OperationFlow = 'in' | 'out' | 'hold' | 'custody' | 'pnl' | 'adjust';
+/** Direction: `in` — incoming, `out` — a withdrawal or its network fee, `hold` — a hold or a freeze, `adjust` — an adjustment. */
+export type OperationFlow = 'in' | 'out' | 'hold' | 'adjust';
 
 /** Kind of a payment in an operation. */
 export type PaymentKind = 'exact' | 'underpaid' | 'overpaid' | 'late' | 'wrong_asset' | 'unallocated' | 'dust';

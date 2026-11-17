@@ -47,10 +47,10 @@ jobs:
         with:
           node-version: ${{ matrix.node }}
           package-manager-cache: false
-      # vitest 4 of the react package needs Node.js 20+; the package itself runs on Node.js 18+ in server renders,
-      # which the smoke checks on every version
+      # The tests run on vitest 4, which needs Node.js 20+. Both packages still support Node.js 18 at runtime
+      # (`engines`: >=18; react in server renders): on 18 only the smoke runs, which checks the packed package there.
       - run: npm run test
-        if: matrix.package == 'node' || matrix.node != 18
+        if: matrix.node != 18
         working-directory: packages/${{ matrix.package }}
       - run: npm run smoke
         working-directory: packages/${{ matrix.package }}

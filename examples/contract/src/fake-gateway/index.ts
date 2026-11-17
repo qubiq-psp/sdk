@@ -1,6 +1,6 @@
 // A fake Merchant API for the conformance suite and the backends' own tests: an in-process node:http server with all
 // 27 operations at /api/v1/*. It checks the v1 signature of every request like the platform, validates query
-// names, the body and X-Client-Request-Id (the platform's parameter check), answers with the documented examples of
+// names and enum values, the body and X-Client-Request-Id (the platform's parameter check), answers with the documented examples of
 // merchant-api.v1.json (deterministic, schema-shaped), keeps invoices and payouts by externalId (201 / 200 / 409),
 // records every request with its answer, and lets a test script the next answers of an operation. It also sends
 // signed webhooks (the platform's webhook-signing rules) to a URL.
@@ -12,6 +12,7 @@ import {
   merchantErrorExample,
   merchantExample,
   merchantOperations,
+  merchantQueryEnums,
   merchantQueryNames,
   successStatuses,
 } from '../internal/contract.js';
@@ -241,7 +242,7 @@ function checkSignature(
   return { details: null, stringToSign };
 }
 
-/** The platform's parameter check: parameter names, the body and `X-Client-Request-Id`. */
+/** The platform's parameter check: parameter names, enum values of the query, the body and `X-Client-Request-Id`. */
 function validateRequest(req: RecordedRequest, operationId: string): Json | null {
   const fields: Json[] = [];
   const clientRequestId = req.headers['x-client-request-id'];
@@ -249,8 +250,13 @@ function validateRequest(req: RecordedRequest, operationId: string): Json | null
     fields.push({ field: 'x-client-request-id', message: 'must be 1-128 printable ASCII characters' });
   }
   const known = merchantQueryNames(operationId);
-  for (const [name] of req.query) {
+  const enums = merchantQueryEnums(operationId);
+  for (const [name, value] of req.query) {
     if (!known.has(name)) fields.push({ field: name, message: `property ${name} should not exist` });
+    const allowed = enums.get(name);
+    if (allowed && value.split(',').some((v) => !allowed.has(v))) {
+      fields.push({ field: name, message: `each value in ${name} must be one of the following values` });
+    }
   }
   const schema = merchantBodySchema(operationId);
   if (req.body !== '') {
