@@ -1078,7 +1078,7 @@ export interface components {
              */
             chain: string;
             /**
-             * @description Asset of the invoice: USDT or TRX. A payment in another asset does not close it
+             * @description Asset of the invoice, one of the assets of its network. A payment in another asset does not close it
              * @example USDT
              */
             asset: string;
@@ -1232,7 +1232,7 @@ export interface components {
             externalId: string;
             /** @description Network */
             network: string;
-            /** @description Asset: USDT or TRX */
+            /** @description Asset of the invoice: an asset of the network with invoicesEnabled in listNetworks (GET /api/v1/networks of the merchant API), for example USDT in tron */
             asset: string;
             /** @description Amount to pay in the asset */
             amount: string;
@@ -1384,7 +1384,7 @@ export interface components {
              */
             chain: string;
             /**
-             * @description Asset of the invoice: USDT or TRX. A payment in another asset does not close it
+             * @description Asset of the invoice, one of the assets of its network. A payment in another asset does not close it
              * @example USDT
              */
             asset: string;
@@ -1824,17 +1824,17 @@ export interface components {
              */
             id: string;
             /**
-             * @description Type of the operation
+             * @description Type of the operation: only the types that move an account of the merchant (13.9)
              * @example deposit_credit
              * @enum {string}
              */
-            type: "deposit_credit" | "deposit_hold" | "deposit_unallocated" | "deposit_small" | "aml_release" | "aml_dirty_assign" | "aml_dirty_release" | "aml_dirty_withdrawal" | "unallocated_assign" | "unallocated_income" | "sweep" | "sweep_unrecognized" | "network_fee" | "payout_hold" | "payout_release" | "payout_capture" | "payout_capture_late" | "payout_network_fee_hold" | "payout_network_fee_charge" | "payout_network_fee_release" | "cross_network_payout_hold" | "cross_network_payout_capture" | "cross_network_payout_release" | "cross_network_payout_reversal" | "wallet_transfer" | "owner_funding" | "owner_withdrawal" | "internetwork_settle" | "merchant_credit" | "merchant_debit" | "merchant_freeze" | "merchant_unfreeze" | "fee_refund" | "issuer_freeze" | "custody_correction" | "writeoff" | "reversal";
+            type: "deposit_credit" | "deposit_hold" | "aml_release" | "aml_dirty_assign" | "aml_dirty_release" | "aml_dirty_withdrawal" | "unallocated_assign" | "payout_hold" | "payout_release" | "payout_capture" | "payout_capture_late" | "payout_network_fee_hold" | "payout_network_fee_charge" | "payout_network_fee_release" | "cross_network_payout_hold" | "cross_network_payout_capture" | "cross_network_payout_release" | "cross_network_payout_reversal" | "merchant_credit" | "merchant_debit" | "merchant_freeze" | "merchant_unfreeze" | "fee_refund" | "reversal";
             /**
-             * @description in, out, hold, adjust; pnl and custody are internal
+             * @description in — incoming, out — a withdrawal or its network fee, hold — a hold or a freeze, adjust — an adjustment
              * @example in
              * @enum {string}
              */
-            flow: "in" | "out" | "hold" | "custody" | "pnl" | "adjust";
+            flow: "in" | "out" | "hold" | "adjust";
             /**
              * @description Connected network: networks.code
              * @example tron
@@ -2103,6 +2103,8 @@ export interface components {
             to: string;
             items: components["schemas"]["V1StatementItem"][];
         };
+        /** @description With format=csv: the rows of the JSON statement as CSV text (RFC 4180, CRLF line ends, UTF-8 without a BOM): a header row network,asset,decimals,opening,inGross,inFee,inNet,outGross,outFee,outNetworkFee,holdsChange,adjustments,closing, then one row per (network, asset) with the values of the fields of the same names in V1Statement.items; the amounts are decimal strings in units of the asset. */
+        getMerchantOperationsStatementResponse: string;
         V1Deposit: {
             /**
              * Format: uuid
@@ -2312,7 +2314,7 @@ export interface components {
         quotePayoutBody: {
             /** @description Connected network with payouts enabled */
             network: string;
-            /** @description Asset of the payout: USDT or TRX */
+            /** @description Asset of the payout: an asset of the network with payoutsEnabled in listNetworks (GET /api/v1/networks of the merchant API), for example USDT in tron */
             asset: string;
             /** @description Recipient in the same network, in its format (7.3): base58 T… or 0x… (an EIP-55 mixed case is accepted, stored lowercase); otherwise 400 invalid_address */
             toAddress: string;
@@ -2573,7 +2575,7 @@ export interface components {
             quoteId: string | null;
             /**
              * @description Reason of the rejection or the cancellation
-             * @example INC-0415: мерчант заблокирован в gateway
+             * @example INC-0412: мерчант заблокирован в gateway до проверки
              */
             reason: string | null;
             /**
@@ -2645,7 +2647,7 @@ export interface components {
             externalId: string;
             /** @description Connected network with payouts enabled */
             network: string;
-            /** @description Asset of the payout: USDT or TRX */
+            /** @description Asset of the payout: an asset of the network with payoutsEnabled in listNetworks (GET /api/v1/networks of the merchant API), for example USDT in tron */
             asset: string;
             /** @description Received by the recipient */
             amount: string;
@@ -2838,7 +2840,7 @@ export interface components {
         V1Tariff: {
             /**
              * @description Name of the plan in force
-             * @example Стандарт
+             * @example Standard
              */
             tariffPlanName: string;
             rules: components["schemas"]["V1TariffRule"][];
@@ -3562,12 +3564,12 @@ export interface components {
          */
         "listMerchantOperations.asset": string;
         /**
-         * @description Types through a comma
+         * @description Types through a comma: only the types that move an account of the merchant
          * @example [
          *       "deposit_credit"
          *     ]
          */
-        "listMerchantOperations.type": ("deposit_credit" | "deposit_hold" | "deposit_unallocated" | "deposit_small" | "aml_release" | "aml_dirty_assign" | "aml_dirty_release" | "aml_dirty_withdrawal" | "unallocated_assign" | "unallocated_income" | "sweep" | "sweep_unrecognized" | "network_fee" | "payout_hold" | "payout_release" | "payout_capture" | "payout_capture_late" | "payout_network_fee_hold" | "payout_network_fee_charge" | "payout_network_fee_release" | "cross_network_payout_hold" | "cross_network_payout_capture" | "cross_network_payout_release" | "cross_network_payout_reversal" | "wallet_transfer" | "owner_funding" | "owner_withdrawal" | "internetwork_settle" | "merchant_credit" | "merchant_debit" | "merchant_freeze" | "merchant_unfreeze" | "fee_refund" | "issuer_freeze" | "custody_correction" | "writeoff" | "reversal")[];
+        "listMerchantOperations.type": ("deposit_credit" | "deposit_hold" | "aml_release" | "aml_dirty_assign" | "aml_dirty_release" | "aml_dirty_withdrawal" | "unallocated_assign" | "payout_hold" | "payout_release" | "payout_capture" | "payout_capture_late" | "payout_network_fee_hold" | "payout_network_fee_charge" | "payout_network_fee_release" | "cross_network_payout_hold" | "cross_network_payout_capture" | "cross_network_payout_release" | "cross_network_payout_reversal" | "merchant_credit" | "merchant_debit" | "merchant_freeze" | "merchant_unfreeze" | "fee_refund" | "reversal")[];
         /**
          * @description Operations of an invoice
          * @example 97da92f5-45c0-411b-9ed5-6793b396cd5f
@@ -4393,7 +4395,7 @@ export interface operations {
                  */
                 asset?: components["parameters"]["listMerchantOperations.asset"];
                 /**
-                 * @description Types through a comma
+                 * @description Types through a comma: only the types that move an account of the merchant
                  * @example [
                  *       "deposit_credit"
                  *     ]
@@ -4564,7 +4566,7 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["V1Statement"];
-                    "text/csv": string;
+                    "text/csv": components["schemas"]["getMerchantOperationsStatementResponse"];
                 };
             };
             "4XX": components["responses"]["PassthroughError"];

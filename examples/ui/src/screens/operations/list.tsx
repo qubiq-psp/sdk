@@ -221,7 +221,11 @@ function Report() {
           <div className="mt-3">
             <Outcome title="Statement CSV" result={csv.data} error={csv.error}>
               {(text) => (
-                <CodeBlock label="First lines" value={text.split('\n').slice(0, 6).join('\n')} maxHeight="max-h-40" />
+                <CodeBlock
+                  label="First lines"
+                  value={text.split(/\r?\n/).slice(0, 6).join('\n')}
+                  maxHeight="max-h-40"
+                />
               )}
             </Outcome>
           </div>

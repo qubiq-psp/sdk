@@ -87,6 +87,24 @@ export function merchantQueryNames(operationId: string): Set<string> {
   return new Set(params.filter((p) => p['in'] === 'query').map((p) => String(p['name'])));
 }
 
+/**
+ * The allowed values of the enum query parameters of a Merchant API operation: name → values. An array parameter
+ * (e.g. `type` of `listMerchantOperations`) takes them through a comma.
+ */
+export function merchantQueryEnums(operationId: string): Map<string, Set<string>> {
+  const { op } = merchantOperation(operationId);
+  const out = new Map<string, Set<string>>();
+  for (const raw of (op['parameters'] as Json[] | undefined) ?? []) {
+    const p = deref(merchantApiDocument, raw);
+    if (p['in'] !== 'query') continue;
+    const schema = deref(merchantApiDocument, (p['schema'] as Json | undefined) ?? {});
+    const items = schema['items'] ? deref(merchantApiDocument, schema['items'] as Json) : schema;
+    const values = items['enum'] as unknown[] | undefined;
+    if (values) out.set(String(p['name']), new Set(values.filter((v) => v !== null).map(String)));
+  }
+  return out;
+}
+
 /** The JSON schema of the request body of a Merchant API operation, or null. */
 export function merchantBodySchema(operationId: string): Json | null {
   const { op } = merchantOperation(operationId);

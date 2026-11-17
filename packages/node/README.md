@@ -586,9 +586,18 @@ const csv: string = await psp.operations.getStatement({ ...period, format: 'csv'
 
 An operation is one movement of funds: the credit of a payment with our commission, a hold for a payout, a write-off, the network fee of a payout. Operations are listed newest first by `postedAt`; `from` and `to` filter by it too.
 
+`op.flow` is the direction: `in` — incoming, `out` — a withdrawal or its network fee, `hold` — a hold or a freeze, `adjust` — an adjustment. `op.type` (`OperationType`) is one of the 24 types that move an account of a merchant:
+
+- deposits: `deposit_credit`, `deposit_hold`, `aml_release`, `aml_dirty_assign`, `aml_dirty_release`, `aml_dirty_withdrawal`, `unallocated_assign`;
+- payouts: `payout_hold`, `payout_release`, `payout_capture`, `payout_capture_late`, `payout_network_fee_hold`, `payout_network_fee_charge`, `payout_network_fee_release`;
+- cross-network payouts: `cross_network_payout_hold`, `cross_network_payout_capture`, `cross_network_payout_release`, `cross_network_payout_reversal`;
+- adjustments: `merchant_credit`, `merchant_debit`, `merchant_freeze`, `merchant_unfreeze`, `fee_refund`, `reversal`.
+
+The `type` filter of `list` / `listAll` takes the same values (one or an array); the platform answers `400 invalid_schema` to any other.
+
 The statement has, per network and asset, the funds (`available + payoutHold + frozen`) at the start and the end of the period, and `closing = opening + inNet − outGross − outFee − outNetworkFee + adjustments`. Opening and closing come from the end-of-day (UTC) snapshots, so set the period at day boundaries.
 
-With `format: 'csv'` the method returns a string: the same rows as `text/csv` with a header and without a BOM, a file for a program. The return type follows `format`. `getResponseMeta()` has nothing for a string: log `requestId` from the [`onResponse`](#logging-and-monitoring) hook.
+With `format: 'csv'` the method returns a string: the same rows as `text/csv` (RFC 4180, CRLF line ends) with a header and without a BOM, a file for a program. The return type follows `format`. `getResponseMeta()` has nothing for a string: log `requestId` from the [`onResponse`](#logging-and-monitoring) hook.
 
 ## Deposits
 

@@ -410,10 +410,7 @@ paths:
                 $ref: 'merchant-api.v1.json#/components/schemas/V1Statement'
             text/csv:
               schema:
-                type: string
-                description: |
-                  With `format=csv`: the platform's CSV text byte for byte, a header line and one line per item of
-                  V1Statement. A string, not the `V1Statement` the Merchant API copy declares for `text/csv`.
+                $ref: 'merchant-api.v1.json#/components/schemas/getMerchantOperationsStatementResponse'
         '4XX':
           $ref: '#/components/responses/PassthroughError'
         '5XX':

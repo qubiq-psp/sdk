@@ -242,6 +242,18 @@ describe('fake gateway', () => {
       });
     });
 
+    it('400 invalid_schema: a query value outside its enum, e.g. a company-only operation type', async () => {
+      const ok = await signed(gateway, 'GET', '/api/v1/operations?type=deposit_credit,payout_capture');
+      expect(ok.status).toBe(200);
+      for (const type of ['sweep', 'deposit_credit,writeoff']) {
+        expect((await signed(gateway, 'GET', `/api/v1/operations?type=${type}`)).json).toMatchObject({
+          errorCode: 'invalid_schema',
+          details: { fields: [{ field: 'type' }] },
+        });
+      }
+      expect((await signed(gateway, 'GET', '/api/v1/invoices?status=nope')).status).toBe(400);
+    });
+
     it('echoes a valid X-Client-Request-Id', async () => {
       const res = await signed(gateway, 'GET', '/api/v1/account', '', { 'x-client-request-id': 'req-1' });
       expect(res.headers.get('x-client-request-id')).toBe('req-1');

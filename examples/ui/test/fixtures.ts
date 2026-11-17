@@ -116,4 +116,9 @@ export const checkoutLink: S['CheckoutLink'] = {
   expiresAt: '2026-11-18T12:00:00.000Z',
 };
 
-export const STATEMENT_CSV = 'network,asset,opening,closing\ntron,USDT,0,100\n';
+/** The documented CSV statement (`text/csv`, CRLF line ends) of the Merchant API description. */
+export const STATEMENT_CSV = String(
+  (spec.paths['/api/v1/operations/statement'].get.responses['200'].content as Record<string, { example?: unknown }>)[
+    'text/csv'
+  ]?.example,
+);
