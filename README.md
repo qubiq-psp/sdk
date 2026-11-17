@@ -1,12 +1,59 @@
 # PSP SDK
 
-The public SDK of the PSP payment system and the merchant examples.
+The official SDK of the PSP payment system and the merchant examples. PSP accepts crypto payments (USDT on TRON and EVM
+networks) by invoices and pays out merchants' money; a merchant's server talks to it through the signed Merchant API,
+and the buyer pays on the PSP payment page embedded in the merchant's site.
 
-| Folder | What it is |
-|---|---|
-| [`packages/node`](packages/node) | [`@qubiq-psp/sdk`](https://www.npmjs.com/package/@qubiq-psp/sdk) — Node.js SDK for the merchant's backend |
-| [`packages/react`](packages/react) | [`@qubiq-psp/react`](https://www.npmjs.com/package/@qubiq-psp/react) — the payment widget for the merchant's frontend |
+| Package                              | What it is                                                                                                                                     |                                                                                                         |
+| ------------------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------- |
+| [`@qubiq-psp/sdk`](packages/node)    | Node.js SDK for the merchant's backend: signed requests to the Merchant API, typed errors, retries, webhook verification, payment widget links | [![npm](https://img.shields.io/npm/v/@qubiq-psp/sdk)](https://www.npmjs.com/package/@qubiq-psp/sdk)     |
+| [`@qubiq-psp/react`](packages/react) | The payment widget for the merchant's frontend: `<PspCheckout>` for React, `mountPspCheckout()` without it                                     | [![npm](https://img.shields.io/npm/v/@qubiq-psp/react)](https://www.npmjs.com/package/@qubiq-psp/react) |
 
-The history of the former repositories `qubiq-psp/node-sdk` and `qubiq-psp/react-sdk` is kept under their folders;
-their release tags are `node-v<version>` and `react-v<version>`. The map of old to new commit ids is in
-`docs/import/commit-maps/`.
+```bash
+npm install @qubiq-psp/sdk      # the backend
+npm install @qubiq-psp/react    # the frontend
+```
+
+Start with the README of each package: [`packages/node`](packages/node/README.md),
+[`packages/react`](packages/react/README.md). What changed in each version: [`@qubiq-psp/sdk`](packages/node/CHANGELOG.md),
+[`@qubiq-psp/react`](packages/react/CHANGELOG.md).
+
+## Security
+
+The API secret lives only on the merchant's server: never in the frontend, the repository or logs. Report a
+vulnerability privately — see [SECURITY.md](SECURITY.md). Every release is built here by GitHub Actions and published
+with npm provenance.
+
+## Development
+
+Node.js 22 and pnpm (pinned in `package.json`, enabled by `corepack enable`).
+
+```bash
+pnpm install            # one lockfile for the whole workspace
+pnpm run ci             # lockfile check, then every check of every package
+pnpm --filter @qubiq-psp/sdk test
+```
+
+`pnpm-lock.yaml` may only hold packages from `registry.npmjs.org` with an integrity hash (`pnpm lockfile:check`).
+
+The types of `@qubiq-psp/sdk` follow the public Merchant API of the platform. `packages/node/api/openapi.v1.json` is a
+copy of it: `pnpm api:sync <path>` in `packages/node` updates the copy and the generated types, and `pnpm api:check`
+compares the types with the copy.
+
+How to contribute: [CONTRIBUTING.md](CONTRIBUTING.md).
+
+## Releases
+
+A tag on a commit of `main` releases one package: `node-v<version>` — `@qubiq-psp/sdk`, `react-v<version>` —
+`@qubiq-psp/react` (`.github/workflows/release.yml`). The version waits in the staged queue of npmjs.com until a
+maintainer approves it with 2FA; it is published with provenance through npm trusted publishing, without a stored token.
+
+## History
+
+This repository joins the former `qubiq-psp/node-sdk` (now `packages/node`) and `qubiq-psp/react-sdk` (now
+`packages/react`), both archived. Their full history is kept under these folders, their release tags are
+`node-v<version>` and `react-v<version>`, and the map of old to new commit ids is in `docs/import/commit-maps/`.
+
+## License
+
+[MIT](LICENSE)

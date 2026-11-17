@@ -1,0 +1,14 @@
+# One workspace: the npm packages and (later) the examples, which take the packages by workspace:*.
+packages:
+  - packages/*
+
+# Install scripts of dependencies do not run unless allowed here. esbuild's only checks its binary, which comes with
+# its optionalDependencies.
+allowBuilds:
+  esbuild: false
+
+# Floors from the security audit of react-sdk (RSDK-002, the former yarn `resolutions`): esbuild and vite below these
+# versions have advisories. A range is a floor, not a pin.
+overrides:
+  esbuild: ^0.28.2
+  vite: ^7.3.7

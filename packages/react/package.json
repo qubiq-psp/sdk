@@ -1,15 +1,16 @@
 {
   "name": "@qubiq-psp/react",
-  "version": "0.1.2",
+  "version": "0.1.3",
   "description": "React component for the PSP payment widget: embeds the payment page in an iframe and reports the invoice status",
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/qubiq-psp/react-sdk.git"
+    "url": "git+https://github.com/qubiq-psp/sdk.git",
+    "directory": "packages/react"
   },
-  "homepage": "https://github.com/qubiq-psp/react-sdk#readme",
+  "homepage": "https://github.com/qubiq-psp/sdk/tree/main/packages/react#readme",
   "bugs": {
-    "url": "https://github.com/qubiq-psp/react-sdk/issues"
+    "url": "https://github.com/qubiq-psp/sdk/issues"
   },
   "type": "module",
   "engines": {
@@ -71,11 +72,10 @@
     "lint": "eslint . --max-warnings 0",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
-    "lockfile:lint": "lockfile-lint --path yarn.lock --type yarn --allowed-hosts yarn --validate-https --validate-integrity",
     "package:check": "publint --strict --pack npm && attw --pack .",
-    "prepack": "yarn build",
-    "ci:release": "yarn lockfile:lint && yarn typecheck && yarn lint && yarn format:check && yarn test && yarn build && yarn package:check",
-    "ci": "yarn ci:release && yarn smoke",
+    "prepack": "tsup",
+    "ci:release": "pnpm run typecheck && pnpm run lint && pnpm run format:check && pnpm run test && pnpm run build && pnpm run package:check",
+    "ci": "pnpm run ci:release && pnpm run smoke",
     "smoke": "node scripts/smoke.mjs"
   },
   "devDependencies": {
@@ -88,7 +88,6 @@
     "eslint": "^9.39",
     "eslint-plugin-react-hooks": "^7",
     "jsdom": "^26",
-    "lockfile-lint": "^4.14",
     "prettier": "^3.6",
     "publint": "^0.3.25",
     "react": "^19",
@@ -98,9 +97,5 @@
     "typescript-eslint": "^8.46",
     "vite": "^7.3.7",
     "vitest": "^4.1.12"
-  },
-  "resolutions": {
-    "esbuild": "^0.28.2",
-    "vite": "^7.3.7"
   }
 }

@@ -2,6 +2,10 @@
 
 All notable changes to `@qubiq-psp/react` are documented here. The project follows [Semantic Versioning](https://semver.org/).
 
+## 0.1.3 — 2026-11-17
+
+No code changes. The source moved to the repository [qubiq-psp/sdk](https://github.com/qubiq-psp/sdk) (`packages/react`), together with the other package and the examples; the former repository `qubiq-psp/react-sdk` becomes a read-only archive. `repository`, `homepage` and `bugs` in `package.json` point there, so npm provenance matches the repository the package is built from.
+
 ## 0.1.2 — 2026-11-10
 
 No code changes: the GitHub organization was renamed from `qubic-psp` to `qubiq-psp`. `repository`, `homepage` and `bugs` in `package.json` point to `github.com/qubiq-psp`, so npm provenance matches the repository the package is built from. This release also validates the npm trusted publisher of the renamed organization.

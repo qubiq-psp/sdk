@@ -1,11 +1,11 @@
-// yarn smoke — packs the package (npm pack runs the build) and, for every React major of SMOKE_REACT (default
+// pnpm smoke — packs the package (npm pack runs the build) and, for every React major of SMOKE_REACT (default
 // "18 19"), installs the tarball with that react, react-dom and @types/react into a temp project, without install
 // scripts. SMOKE_TARBALL=<path> checks an already packed tarball instead (the release packs first). There it runs
 // test/smoke/consumer.{mjs,cjs} with import() and require() — a server render, a client render in jsdom with
 // messages of the page, mountPspCheckout() — and type-checks test/smoke/consumer.tsx against the installed
 // declarations without skipLibCheck (moduleResolution bundler and node16). Needs the npm registry for React.
 // Extra Node.js binaries to try:
-//   SMOKE_NODES="$HOME/.nvm/versions/node/v20.10.0/bin/node $HOME/.nvm/versions/node/v24.9.0/bin/node" yarn smoke
+//   SMOKE_NODES="$HOME/.nvm/versions/node/v20.10.0/bin/node $HOME/.nvm/versions/node/v24.9.0/bin/node" pnpm smoke
 import { execFileSync } from 'node:child_process';
 import { copyFileSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { createRequire } from 'node:module';

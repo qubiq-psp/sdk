@@ -1,6 +1,6 @@
-// yarn smoke — packs the package (npm pack runs the build), installs the tarball into a temp project and runs
+// pnpm smoke — packs the package (npm pack runs the build), installs the tarball into a temp project and runs
 // test/smoke/consumer.{mjs,cjs} there with import() and require(). Extra Node.js binaries to try:
-//   SMOKE_NODES="$HOME/.nvm/versions/node/v20.10.0/bin/node $HOME/.nvm/versions/node/v24.9.0/bin/node" yarn smoke
+//   SMOKE_NODES="$HOME/.nvm/versions/node/v20.10.0/bin/node $HOME/.nvm/versions/node/v24.9.0/bin/node" pnpm smoke
 import { execFileSync } from 'node:child_process';
 import { copyFileSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
