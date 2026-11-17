@@ -20,6 +20,11 @@ export declare const MERCHANT_OPERATION_IDS: string[];
 export declare function resolveLocal(doc: Json, ref: string): Json;
 /** Names of the query parameters of a Merchant API operation. */
 export declare function merchantQueryNames(operationId: string): Set<string>;
+/**
+ * The allowed values of the enum query parameters of a Merchant API operation: name → values. An array parameter
+ * (e.g. `type` of `listMerchantOperations`) takes them through a comma.
+ */
+export declare function merchantQueryEnums(operationId: string): Map<string, Set<string>>;
 /** The JSON schema of the request body of a Merchant API operation, or null. */
 export declare function merchantBodySchema(operationId: string): Json | null;
 /** The documented answers of a Merchant API operation: status → media type → example (or examples by name). */

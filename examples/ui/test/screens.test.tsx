@@ -153,7 +153,9 @@ describe('screens', () => {
     await user.click(screen.getByRole('tab', { name: 'Summary and statement' }));
     await screen.findByRole('heading', { name: 'Statement' });
     await user.click(screen.getByRole('button', { name: 'Download statement (CSV)' }));
-    expect(await screen.findByLabelText('First lines')).toHaveTextContent('network,asset');
+    const lines = await screen.findByLabelText('First lines');
+    expect(lines).toHaveTextContent('network,asset');
+    expect(lines.textContent).not.toContain('\r');
     const formats = called('getMerchantOperationsStatement').map((c) => c.url.searchParams.get('format'));
     expect(formats).toEqual(expect.arrayContaining(['json', 'csv']));
     expect(called('getMerchantOperationsSummary').length).toBeGreaterThan(0);
