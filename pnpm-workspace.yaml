@@ -4,12 +4,15 @@ packages:
   - examples/contract
   - examples/plain/api
   - examples/sdk/api
+  - examples/ui
 
 # Install scripts of dependencies do not run unless allowed here. esbuild's only checks its binary, which comes with
-# its optionalDependencies; core-js's (via @redocly/cli of examples/contract) only prints a banner.
+# its optionalDependencies; core-js's (via @redocly/cli of examples/contract) only prints a banner; msw's (examples/ui)
+# copies its service worker into a project that asks for it, and the UI tests use msw/node, not the worker.
 allowBuilds:
   core-js: false
   esbuild: false
+  msw: false
 
 # Floors from the security audit of react-sdk (RSDK-002, the former yarn `resolutions`): esbuild and vite below these
 # versions have advisories. A range is a floor, not a pin.
