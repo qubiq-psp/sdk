@@ -183,3 +183,59 @@ describe('APP_UI_DIR', () => {
     }
   });
 });
+
+describe('cross-site requests to /api (CSRF: basic auth is ambient)', () => {
+  const settings = JSON.stringify({ mode: 'auto', status: 500, delayMs: 0, failNext: 0 });
+  const put = (headers: Record<string, string>, body: string | undefined = settings) =>
+    fetch(`${app.url}/api/receiver`, { method: 'PUT', headers, body });
+  const own = (): string => new URL(app.url).origin;
+
+  it('403 example_forbidden for a foreign Origin or Sec-Fetch-Site on a state-changing request', async () => {
+    const json = { 'Content-Type': 'application/json' };
+    for (const [headers, header] of [
+      [{ Origin: 'https://evil.example' }, 'Origin'],
+      [{ Origin: 'null' }, 'Origin'],
+      [{ Origin: own().replace('127.0.0.1', 'localhost') }, 'Origin'],
+      [{ 'Sec-Fetch-Site': 'cross-site' }, 'Sec-Fetch-Site'],
+      [{ 'Sec-Fetch-Site': 'same-site', Origin: own() }, 'Sec-Fetch-Site'],
+    ] as const) {
+      const res = await put({ ...json, ...headers });
+      expect(res.status, JSON.stringify(headers)).toBe(403);
+      expect(await res.json()).toMatchObject({ errorCode: 'example_forbidden', details: { header } });
+    }
+    const passthrough = await fetch(`${app.url}/api/invoices`, {
+      method: 'POST',
+      headers: { ...json, Origin: 'https://evil.example' },
+      body: '{}',
+    });
+    expect(passthrough.status).toBe(403);
+    expect(passthrough.headers.get('x-example-call-id')).toMatch(/^[0-9a-f-]{36}$/);
+    const del = await fetch(`${app.url}/api/request-log`, {
+      method: 'DELETE',
+      headers: { Origin: 'https://evil.example' },
+    });
+    expect(del.status).toBe(403);
+  });
+
+  it('passes a same-origin browser request, one without Origin, and any GET', async () => {
+    const allowed: Record<string, string>[] = [
+      { Origin: own(), 'Sec-Fetch-Site': 'same-origin' },
+      { 'Sec-Fetch-Site': 'none' },
+      {},
+    ];
+    for (const headers of allowed) {
+      const res = await put({ 'Content-Type': 'application/json; charset=utf-8', ...headers });
+      expect(res.status, JSON.stringify(headers)).toBe(200);
+    }
+    const get = await fetch(`${app.url}/api/config`, { headers: { Origin: 'https://evil.example' } });
+    expect(get.status).toBe(200);
+  });
+
+  it('a body must be application/json: 400 example_invalid_request, field Content-Type', async () => {
+    for (const contentType of ['text/plain', 'application/x-www-form-urlencoded', 'application/jsonp']) {
+      const res = await put({ 'Content-Type': contentType });
+      expect(res.status, contentType).toBe(400);
+      expect(await res.json()).toMatchObject({ details: { field: 'Content-Type' } });
+    }
+  });
+});

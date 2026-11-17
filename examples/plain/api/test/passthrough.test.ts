@@ -134,8 +134,8 @@ describe('backend-own errors (example_*)', () => {
     const json = { 'content-type': 'application/json' };
     await expect400({ method: 'POST', url: '/api/invoices', headers: json, payload: '{"a":' }, 'body');
     await expect400(
-      { method: 'POST', url: '/api/invoices', headers: { 'content-type': 'text/plain' }, payload: 'x' },
-      'body',
+      { method: 'POST', url: '/api/invoices', headers: { 'content-type': 'text/plain' }, payload: '{"a":1}' },
+      'Content-Type',
     );
     await expect400(
       { method: 'GET', url: '/api/account', headers: { 'x-client-request-id': 'has space' } },

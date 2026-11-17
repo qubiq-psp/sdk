@@ -6,6 +6,7 @@ import type { AppConfig } from '../config/app-config';
 import { WEBHOOK_PATH } from '../webhooks/webhook-receiver.controller';
 import { ExampleError } from './example-error';
 import { assignCallId } from './passthrough';
+import { refuseCrossSite } from './same-origin';
 
 /** `/api/*` bodies up to 1 MB reach the platform, which itself refuses more than 64 KB (`413 payload_too_large`). */
 const API_BODY_LIMIT = 1024 * 1024;
@@ -23,12 +24,14 @@ export function configureHttp(app: NestExpressApplication, config: AppConfig): v
   app.set('trust proxy', 'loopback');
 
   app.use(assignCallId);
+  // Cross-site requests and bodies that are not JSON are refused before anything reads the body (CSRF)
+  app.use('/api', refuseCrossSite);
   // The webhook signature covers the raw bytes: this path gets them untouched as a Buffer, whatever the Content-Type
   app.use(
     WEBHOOK_PATH,
     refuseUnreadable(express.raw({ type: () => true, limit: WEBHOOK_BODY_LIMIT }), WEBHOOK_BODY_LIMIT),
   );
-  // Any body of an /api request is JSON. strict: false — a passthrough body is forwarded as parsed, the platform
+  // Any body of an /api request is JSON (refuseCrossSite checked the Content-Type). strict: false — a passthrough body is forwarded as parsed, the platform
   // judges it (a bare `5` is valid JSON). Without a body req.body stays undefined: nothing is sent on.
   const json = express.json({
     type: () => true,

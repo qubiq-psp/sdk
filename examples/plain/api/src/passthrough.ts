@@ -38,6 +38,17 @@ export interface PassthroughDeps {
 
 const callIds = new WeakMap<FastifyRequest, string>();
 
+/**
+ * Every passthrough answer carries the id of the call — also a backend-own error before the platform call. Called
+ * first in the `onRequest` hook of the app (app.ts), before any check can refuse the request.
+ */
+export function assignCallId(req: FastifyRequest, reply: FastifyReply): void {
+  if ((req.routeOptions.config as { passthrough?: boolean } | undefined)?.passthrough !== true) return;
+  const callId = randomUUID();
+  callIds.set(req, callId);
+  void reply.header('X-Example-Call-Id', callId);
+}
+
 export async function registerPassthrough(app: FastifyInstance, deps: PassthroughDeps): Promise<void> {
   await app.register(async (scope) => {
     // Bodies stay raw bytes in this scope: they are forwarded and signed exactly as received
@@ -45,17 +56,11 @@ export async function registerPassthrough(app: FastifyInstance, deps: Passthroug
     scope.addContentTypeParser('*', { parseAs: 'buffer', bodyLimit: API_BODY_LIMIT }, (_req, body, done) => {
       done(null, body);
     });
-    // Every passthrough answer carries the id of the call — also a backend-own error before the platform call
-    scope.addHook('onRequest', async (req, reply) => {
-      const callId = randomUUID();
-      callIds.set(req, callId);
-      void reply.header('X-Example-Call-Id', callId);
-    });
-
     for (const route of PASSTHROUGH_ROUTES) {
       scope.route({
         method: route.method,
         url: route.path.replace(/\{(\w+)\}/g, ':$1'),
+        config: { passthrough: true },
         handler: async (req, reply) => passthrough(route, req, reply, deps),
       });
     }

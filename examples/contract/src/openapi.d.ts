@@ -679,12 +679,16 @@ export interface components {
     schemas: {
         /**
          * @description Codes of errors produced by a backend itself, never by the platform:
-         *     - `example_invalid_request` (400) — refused before any platform call: a bad JSON body, an `X-Client-Request-Id`
+         *     - `example_invalid_request` (400) — refused before any platform call: a body without `Content-Type:
+         *       application/json` (`field`: `Content-Type`), a bad JSON body, an `X-Client-Request-Id`
          *       outside `^[\x21-\x7E]{1,128}$`, a path id that is empty, `.` or `..`, bad widget-link options, bad receiver settings or log
          *       filters. `details`: `{ field, message }`. `field` names the refused input: for the JSON body, the dotted path
          *       from its root (`branding.logoUrl`, `expiresInSeconds`, `status`), `body` for the body as a whole; otherwise
          *       the name of the path parameter, query parameter or header as the contract spells it (`invoiceId`, `status`,
          *       `X-Client-Request-Id`).
+         *     - `example_forbidden` (403) — a state-changing `/api/*` request (`POST`, `PUT`, `DELETE`) from another site:
+         *       `Sec-Fetch-Site` present and not `same-origin`/`none`, or `Origin` present with a host other than `Host`.
+         *       `details`: `{ header, value }` — the header that gave it away.
          *     - `example_not_found` (404) — an unknown route, request-log entry or received webhook.
          *     - `example_upstream_timeout` (504) — the platform did not answer within `APP_UPSTREAM_TIMEOUT_MS`. `details`:
          *       `{ timeoutMs }`.
@@ -698,7 +702,7 @@ export interface components {
          *     - `example_internal_error` (500) — a bug in the backend.
          * @enum {string}
          */
-        ExampleErrorCode: "example_invalid_request" | "example_not_found" | "example_upstream_timeout" | "example_upstream_unreachable" | "example_upstream_bad_response" | "example_payload_too_large" | "example_internal_error";
+        ExampleErrorCode: "example_invalid_request" | "example_forbidden" | "example_not_found" | "example_upstream_timeout" | "example_upstream_unreachable" | "example_upstream_bad_response" | "example_payload_too_large" | "example_internal_error";
         /** @description The same shape as the platform `ErrorResponse`, with an `example_*` code. */
         ExampleError: {
             errorCode: components["schemas"]["ExampleErrorCode"];
@@ -5455,6 +5459,7 @@ export interface operations {
                 };
             };
             400: components["responses"]["ExampleError"];
+            403: components["responses"]["ExampleError"];
         };
     };
     listRequestLog: {
@@ -5684,6 +5689,7 @@ export interface operations {
                 };
             };
             400: components["responses"]["ExampleError"];
+            403: components["responses"]["ExampleError"];
         };
     };
     receivePspWebhook: {

@@ -565,6 +565,96 @@ export function defineConformanceSuite(options: ConformanceOptions): void {
         expect(gateway.since(mark)).toEqual([]);
       });
 
+      it('a body that is not Content-Type: application/json: 400 example_invalid_request, no platform call', async () => {
+        // What a cross-site <form enctype="text/plain"> can send: valid JSON, but not as application/json
+        const mark = gateway.requests.length;
+        const json = JSON.stringify({ externalId: 'csrf-1', network: 'tron', asset: 'USDT', amount: '1' });
+        for (const contentType of [
+          'text/plain',
+          'application/x-www-form-urlencoded',
+          'multipart/form-data; boundary=x',
+        ]) {
+          const res = await call('/api/invoices', {
+            method: 'POST',
+            raw: json,
+            headers: { 'content-type': contentType },
+          });
+          await expectExampleError(res, 400, 'example_invalid_request', 'Content-Type');
+          expect(res.callId, 'X-Example-Call-Id on every passthrough answer').toMatch(UUID_RE);
+        }
+        const receiver = await call('/api/receiver', {
+          method: 'PUT',
+          raw: JSON.stringify({ mode: 'fixed', status: 500, delayMs: 0, failNext: 0 }),
+          headers: { 'content-type': 'text/plain' },
+        });
+        await expectExampleError(receiver, 400, 'example_invalid_request', 'Content-Type');
+        expect((await call('/api/receiver')).json).toMatchObject({ mode: 'auto' });
+        expect(gateway.since(mark)).toEqual([]);
+      });
+
+      it('a state-changing request from another site: 403 example_forbidden, no platform call', async () => {
+        const mark = gateway.requests.length;
+        const body = { externalId: 'csrf-2', network: 'tron', asset: 'USDT', amount: '1' };
+        const crossSite: Record<string, string>[] = [
+          { Origin: 'https://attacker.example' },
+          { Origin: 'null' },
+          { 'Sec-Fetch-Site': 'cross-site' },
+          { 'Sec-Fetch-Site': 'same-site' },
+          { Origin: new URL(base).origin, 'Sec-Fetch-Site': 'cross-site' },
+        ];
+        for (const headers of crossSite) {
+          const res = await call('/api/invoices', { method: 'POST', body, headers });
+          await expectExampleError(res, 403, 'example_forbidden');
+          const header = 'Sec-Fetch-Site' in headers ? 'Sec-Fetch-Site' : 'Origin';
+          expect(res.json, JSON.stringify(headers)).toMatchObject({ details: { header } });
+          expect(res.callId, 'X-Example-Call-Id on every passthrough answer').toMatch(UUID_RE);
+        }
+        const settings = { mode: 'fixed', status: 500, delayMs: 0, failNext: 0 };
+        for (const [method, path, init] of [
+          ['PUT', '/api/receiver', { body: settings }],
+          ['DELETE', '/api/request-log', {}],
+          ['DELETE', '/api/received-webhooks', {}],
+          ['POST', `/api/invoices/${IDS.invoice}/checkout-link`, { body: {} }],
+        ] as const) {
+          const res = await call(path, { method, ...init, headers: { Origin: 'https://attacker.example' } });
+          await expectExampleError(res, 403, 'example_forbidden');
+        }
+        expect((await call('/api/receiver')).json).toMatchObject({ mode: 'auto' });
+        expect(gateway.since(mark)).toEqual([]);
+        // Reading is not state-changing: a GET with a foreign Origin is answered (the browser keeps it from the page)
+        expect((await call('/api/config', { headers: { Origin: 'https://attacker.example' } })).status).toBe(200);
+      });
+
+      it('same-origin browser requests and requests without Origin (curl) pass', async () => {
+        const sameOrigin = await passthrough('getMerchantTariff', '/api/tariff');
+        expect(sameOrigin.res.status).toBe(200);
+        const allowed: Record<string, string>[] = [
+          { Origin: new URL(base).origin, 'Sec-Fetch-Site': 'same-origin' },
+          { 'Sec-Fetch-Site': 'none' },
+          {},
+        ];
+        for (const headers of allowed) {
+          const { res, sent } = await passthrough('sendTestWebhook', '/api/webhook/test', {
+            method: 'POST',
+            body: {},
+            headers,
+          });
+          expect(res.status, JSON.stringify(headers)).toBe(sent.at(-1)?.response?.status);
+          expect(sent.length).toBeGreaterThan(0);
+        }
+        const settings = { mode: 'auto', status: 500, delayMs: 0, failNext: 0 };
+        const put = await call('/api/receiver', {
+          method: 'PUT',
+          body: settings,
+          headers: {
+            Origin: new URL(base).origin,
+            'Sec-Fetch-Site': 'same-origin',
+            'content-type': 'application/json; charset=utf-8',
+          },
+        });
+        expect(put.json).toEqual(settings);
+      });
+
       it('X-Client-Request-Id in a wrong format: 400 example_invalid_request, no platform call', async () => {
         const mark = gateway.requests.length;
         const res = await call('/api/account', { headers: { 'X-Client-Request-Id': 'has spaces in it' } });

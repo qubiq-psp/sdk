@@ -57,6 +57,13 @@ export default defineConfig(({ mode }) => {
       // Server-Sent Events must reach the browser at once: no compression, no buffering
       proxy.on('proxyReq', (proxyReq, req) => {
         if (req.url?.startsWith('/api/stream')) proxyReq.setHeader('accept-encoding', 'identity');
+        // The backend refuses a state-changing request whose Origin is not its Host (CSRF). changeOrigin sets Host to
+        // the backend's, so a request of this dev page gets the backend's origin too; any other Origin (another
+        // site) goes on as it is and is refused.
+        const origin = req.headers.origin;
+        if (origin !== undefined && origin === `http://${req.headers.host ?? ''}`) {
+          proxyReq.setHeader('origin', new URL(backend).origin);
+        }
       });
       proxy.on('proxyRes', (proxyRes, req) => {
         if (req.url?.startsWith('/api/stream')) {

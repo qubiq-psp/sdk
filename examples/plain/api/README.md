@@ -141,6 +141,10 @@ CI builds this image on every pull request (`docker build` only, nothing is push
 - **No login of its own.** nginx basic auth protects everything except `POST /webhooks/psp`, which the platform calls
   and which is protected by the signature. merchant-test-ui's own login (and its bypass, MTU-001) is gone.
 - **Testnet only** with `APP_TESTNET_ONLY=true`.
+- **Cross-site requests are refused** ([`src/same-origin.ts`](src/same-origin.ts)): basic auth is ambient, so a
+  `POST`/`PUT`/`DELETE` to `/api` with `Sec-Fetch-Site` other than `same-origin`/`none` or an `Origin` whose host is
+  not `Host` is `403 example_forbidden`, and a body without `Content-Type: application/json` is
+  `400 example_invalid_request` — before the body is read.
 - **The open receiver is bounded.** `POST /webhooks/psp` reads at most 64 KB (`413` beyond). A request whose signature
   does not verify keeps only 512 bytes of its body, unparsed, in a ring of the last 100 of its own, so junk cannot push
   real webhooks out; both logs are bounded by `APP_LOG_LIMIT` entries and `APP_LOG_MAX_BYTES`.
@@ -153,7 +157,8 @@ CI builds this image on every pull request (`docker build` only, nothing is push
   per attempt and the same body bytes and `externalId` (gateway docs 13.10); `@qubiq-psp/sdk` does that by default and
   the sdk backend shows it.
 - **No validation of Merchant API input.** It forwards the query string and body as received so that the platform's own
-  validation errors reach the UI. Before sending it only refuses what the SDK refuses: a body that is not JSON, a bad
+  validation errors reach the UI. Before sending it only refuses what the SDK refuses (and, against CSRF, a body that is
+  not `application/json` and a cross-site request): a body that is not JSON, a bad
   `X-Client-Request-Id`, a path id that is empty, `.` or `..` (`400 example_invalid_request`).
 - **No persistence.** The request log, the received webhooks and the receiver settings live in memory and reset on a
   restart. A real handler stores the event (and its `id` for deduplication) durably before it answers `2xx`.

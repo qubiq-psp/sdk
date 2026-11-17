@@ -6,9 +6,10 @@ import { CheckoutInputError, createCheckoutLink } from './checkout.ts';
 import { loadConfig, type Config } from './config.ts';
 import { invalidRequest, notFound, registerErrorHandler } from './errors.ts';
 import { API_BODY_LIMIT } from './limits.ts';
-import { registerPassthrough } from './passthrough.ts';
+import { assignCallId, registerPassthrough } from './passthrough.ts';
 import { Receiver, registerReceiver } from './receiver.ts';
 import { RequestLog, registerRequestLogRoutes } from './request-log.ts';
+import { refusalOf } from './same-origin.ts';
 import { registerStream } from './stream.ts';
 import type { CheckoutLinkView, ConfigView } from './types.ts';
 import { VERSION } from './version.ts';
@@ -44,6 +45,15 @@ export async function buildApp({ config, logger = true, fetch: fetchImpl = fetch
     bodyLimit: API_BODY_LIMIT,
   });
   registerErrorHandler(app);
+  // Before routing to a handler or parsing a body: the call id of a passthrough call, then the cross-site checks
+  app.addHook('onRequest', async (req, reply) => {
+    assignCallId(req, reply);
+    const path = req.url.split('?')[0] ?? '';
+    if (path === '/api' || path.startsWith('/api/')) {
+      const refusal = refusalOf(req.method, req.headers);
+      if (refusal) throw refusal;
+    }
+  });
 
   const bus = new EventBus();
   const log = new RequestLog(config.logLimit, config.logMaxBytes, bus);

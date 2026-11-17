@@ -2,7 +2,7 @@ import { mkdirSync, mkdtempSync, readdirSync, readFileSync, writeFileSync } from
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
-import type { ConfigView } from '../src/types.ts';
+import type { ConfigView, ExampleError } from '../src/types.ts';
 import { signWebhook } from '../src/webhook-verify.ts';
 import { makeApp, OTHER_SECRET, SHOP_KEY, SHOP_SECRET, startStubPlatform, type StubPlatform } from './helpers.ts';
 
@@ -53,7 +53,11 @@ describe('the secret never leaves', () => {
     );
     const bodies: string[] = [];
     const call = async (method: 'GET' | 'POST', url: string, payload?: string) => {
-      const res = await app.inject({ method, url, ...(payload === undefined ? {} : { payload }) });
+      const res = await app.inject({
+        method,
+        url,
+        ...(payload === undefined ? {} : { payload, headers: { 'content-type': 'application/json' } }),
+      });
       bodies.push(res.body);
       return res;
     };
@@ -190,5 +194,73 @@ describe('no SDK', () => {
     >;
     const deps = Object.keys({ ...(pkg['dependencies'] as object), ...(pkg['devDependencies'] as object) });
     expect(deps.filter((name) => name.startsWith('@qubiq-psp/'))).toEqual([]);
+  });
+});
+
+describe('cross-site requests to /api (CSRF: basic auth is ambient)', () => {
+  const body = '{"externalId":"x"}';
+  const json = { 'content-type': 'application/json' };
+
+  it('403 example_forbidden for a foreign Origin or Sec-Fetch-Site on POST/PUT/DELETE, before any platform call', async () => {
+    const { app, log } = await makeApp();
+    const cases: [string, string, Record<string, string>, string][] = [
+      ['POST', '/api/invoices', { origin: 'https://evil.example' }, 'Origin'],
+      ['POST', '/api/invoices', { origin: 'null' }, 'Origin'],
+      ['POST', '/api/invoices', { origin: 'http://localhost:80' }, 'Origin'],
+      ['PUT', '/api/receiver', { 'sec-fetch-site': 'cross-site' }, 'Sec-Fetch-Site'],
+      ['DELETE', '/api/request-log', { 'sec-fetch-site': 'same-site' }, 'Sec-Fetch-Site'],
+    ];
+    for (const [method, url, headers, header] of cases) {
+      const res = await app.inject({
+        method: method as 'POST',
+        url,
+        headers: { ...json, host: 'example.test', ...headers },
+        payload: method === 'DELETE' ? undefined : body,
+      });
+      expect(res.statusCode, `${method} ${url} ${JSON.stringify(headers)}`).toBe(403);
+      expect(res.json<ExampleError>()).toMatchObject({ errorCode: 'example_forbidden', details: { header } });
+    }
+    expect(log.page(() => true, 1, 50).total).toBe(0);
+  });
+
+  it('passes a same-origin browser request, one without Origin, and any GET', async () => {
+    const { app } = await makeApp();
+    const settings = { mode: 'auto', status: 500, delayMs: 0, failNext: 0 };
+    for (const headers of [
+      { host: 'example.test', origin: 'https://example.test', 'sec-fetch-site': 'same-origin' },
+      { host: 'example.test:8443', origin: 'https://Example.test:8443' },
+      { host: 'example.test', 'sec-fetch-site': 'none' },
+      { host: 'example.test' },
+    ]) {
+      const res = await app.inject({
+        method: 'PUT',
+        url: '/api/receiver',
+        headers: { ...json, ...headers },
+        payload: settings,
+      });
+      expect(res.statusCode, JSON.stringify(headers)).toBe(200);
+    }
+    const get = await app.inject({ method: 'GET', url: '/api/config', headers: { origin: 'https://evil.example' } });
+    expect(get.statusCode).toBe(200);
+  });
+
+  it('a body must be application/json: 400 example_invalid_request, field Content-Type', async () => {
+    const { app } = await makeApp();
+    for (const contentType of [undefined, 'text/plain', 'application/x-www-form-urlencoded', 'application/jsonp']) {
+      const res = await app.inject({
+        method: 'PUT',
+        url: '/api/receiver',
+        headers: contentType === undefined ? {} : { 'content-type': contentType },
+        payload: Buffer.from('{"mode":"fixed","status":500,"delayMs":0,"failNext":0}'),
+      });
+      expect(res.statusCode, String(contentType)).toBe(400);
+      expect(res.json<ExampleError>()).toMatchObject({ details: { field: 'Content-Type' } });
+    }
+    const empty = await app.inject({
+      method: 'DELETE',
+      url: '/api/request-log',
+      headers: { 'content-type': 'text/plain' },
+    });
+    expect(empty.statusCode).toBe(204);
   });
 });

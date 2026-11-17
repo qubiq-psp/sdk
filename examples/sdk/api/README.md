@@ -179,6 +179,13 @@ So one UI action may take minutes on repeated `503`/`429`/timeouts, and produce 
 A body that is not JSON is `400 example_invalid_request` too; an unknown route `404 example_not_found`. Every
 passthrough answer carries `X-Example-Call-Id`.
 
+Basic auth in front of the deployment is ambient — a browser sends it with a request made by any page, also of another
+site — so [`src/example/same-origin.ts`](src/example/same-origin.ts) refuses cross-site requests before the body is
+read: a `POST`/`PUT`/`DELETE` with `Sec-Fetch-Site` other than `same-origin`/`none` or an `Origin` whose host is not
+`Host` is `403 example_forbidden`, and an `/api` body without `Content-Type: application/json` is
+`400 example_invalid_request` (`field: Content-Type`). A shop's backend with sessions gets the same from SameSite
+cookies or a CSRF token.
+
 ## The request log
 
 The SDK takes a `fetch` option. `src/example/request-log/request-log.service.ts` gives it a wrapper of the global

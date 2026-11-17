@@ -330,6 +330,34 @@ export async function startReferenceBackend(env: ConformanceEnv): Promise<Starte
     send(res, status, body);
   }
 
+  function crossSiteRefusal(req: IncomingMessage): HttpError | null {
+    const h = (name: string): string | undefined => {
+      const v = req.headers[name];
+      return Array.isArray(v) ? v[0] : v;
+    };
+    if (['POST', 'PUT', 'DELETE', 'PATCH'].includes(req.method ?? '')) {
+      const site = h('sec-fetch-site');
+      if (site !== undefined && site !== 'same-origin' && site !== 'none')
+        return new HttpError(403, 'example_forbidden', 'cross-site', { header: 'Sec-Fetch-Site', value: site });
+      const origin = h('origin');
+      let host: string | null = null;
+      try {
+        host = origin === undefined ? null : new URL(origin).host;
+      } catch {
+        host = null;
+      }
+      if (origin !== undefined && host !== h('host'))
+        return new HttpError(403, 'example_forbidden', 'cross-site', { header: 'Origin', value: origin });
+    }
+    const length = h('content-length');
+    if (
+      ((length !== undefined && length !== '0') || h('transfer-encoding') !== undefined) &&
+      (h('content-type') ?? '').split(';')[0]?.trim().toLowerCase() !== 'application/json'
+    )
+      return invalid('Content-Type', 'must be application/json');
+    return null;
+  }
+
   function send(res: ServerResponse, status: number, body: unknown, headers: Record<string, string> = {}): void {
     res.writeHead(status, { 'content-type': 'application/json; charset=utf-8', ...headers });
     res.end(body === undefined ? '' : JSON.stringify(body));
@@ -381,6 +409,19 @@ export async function startReferenceBackend(env: ConformanceEnv): Promise<Starte
     const path = url.pathname;
     const q = url.searchParams;
     if (method === 'POST' && path === '/webhooks/psp') return receive(req, raw, res);
+    if (path.startsWith('/api/')) {
+      const refusal = crossSiteRefusal(req);
+      if (refusal) {
+        const passthroughRoute = passthrough.some((r) => r.method === method && r.re.test(path));
+        const callId = passthroughRoute ? { 'x-example-call-id': randomUUID() } : undefined;
+        return send(
+          res,
+          refusal.status,
+          { errorCode: refusal.errorCode, errorMessage: refusal.message, details: refusal.details },
+          callId,
+        );
+      }
+    }
     if (method === 'GET' && path === '/api/config') {
       return send(res, 200, {
         backend: 'plain',

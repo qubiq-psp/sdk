@@ -7,6 +7,7 @@ export type ExampleErrorBody = components['schemas']['ExampleError'];
 
 const STATUS: Record<ExampleErrorCode, number> = {
   example_invalid_request: 400,
+  example_forbidden: 403,
   example_not_found: 404,
   example_upstream_timeout: 504,
   example_upstream_unreachable: 502,
