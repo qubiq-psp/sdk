@@ -3,8 +3,10 @@
 name: ci
 
 on:
+  # main receives only dev through a pull request (checked here), and release.yml re-runs every check of the package
+  # before packing it, so a push to main is not checked again.
   push:
-    branches: [dev, main]
+    branches: [dev]
   pull_request:
 
 permissions:
