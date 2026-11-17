@@ -6,6 +6,19 @@ All notable changes to `@qubiq-psp/sdk` are documented here. The project follows
 
 No code changes. The source moved to the repository [qubiq-psp/sdk](https://github.com/qubiq-psp/sdk) (`packages/node`), together with the other package and the examples; the former repository `qubiq-psp/node-sdk` becomes a read-only archive. `repository`, `homepage` and `bugs` in `package.json` point there, so npm provenance matches the repository the package is built from.
 
+### Added
+
+- The SDK now covers all 27 operations of the merchant API, not only the 13 public ones. New resources:
+  - `psp.balances.get` — balances per network and asset and per currency;
+  - `psp.operations.list` / `listAll` / `get` / `getSummary` / `getStatement` — operations, their totals and the statement; `getStatement({ …, format: 'csv' })` returns the `text/csv` body as a string;
+  - `psp.deposits.list` / `listAll` / `get` — deposits with their credit status and the totals of the filter;
+  - `psp.payouts.quote` / `create` / `list` / `listAll` / `get` / `cancel` — payouts;
+  - `psp.networks.list` and `psp.tariff.get`.
+- `payouts.create` is idempotent by `externalId` and is retried like `invoices.create`. It waits at least 180 s per attempt, even when the client `timeoutMs` is lower; an explicit per-call `timeoutMs` is kept. `payouts.quote` is retried only when it surely did not run.
+- Public types of the new objects (`MerchantBalances`, `Operation`, `Statement`, `Deposit`, `Payout`, `PayoutQuote`, `Network`, `Tariff`, …), checked against the OpenAPI schemas.
+- Typed `details` of the payout error codes: `limit_exceeded`, `invalid_address`, `own_address`, `insufficient_balance`, `network_fee_too_high`, `payout_conflict`, `network_service_rejected`, `rate_unavailable`.
+- `examples/create-payout.ts`.
+
 ## 0.2.1 — 2026-11-10
 
 No code changes: the GitHub organization was renamed from `qubic-psp` to `qubiq-psp`. `repository`, `homepage` and `bugs` in `package.json` point to `github.com/qubiq-psp`, so npm provenance matches the repository the package is built from. This release also validates the npm trusted publisher of the renamed organization.

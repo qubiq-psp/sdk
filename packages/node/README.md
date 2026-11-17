@@ -1,9 +1,9 @@
 # @qubiq-psp/sdk
 
-Node.js SDK for the PSP merchant API. Use it on your backend to accept crypto payments: create invoices, check their state, manage the webhook endpoint, and verify the webhooks the platform sends you.
+Node.js SDK for the PSP merchant API. Use it on your backend to accept crypto payments: create invoices, check their state, manage the webhook endpoint, and verify the webhooks the platform sends you. It also reads balances, operations, statements and deposits, and requests payouts.
 
 - Every request is signed with HMAC-SHA256 (scheme `v1`). The SDK handles query encoding, body bytes, timestamps and nonces.
-- Failed calls are retried by the platform rules. Retries never create duplicates: invoices are idempotent by `externalId`.
+- Failed calls are retried by the platform rules. Retries never create duplicates: invoices and payouts are idempotent by `externalId`.
 - Errors are typed. `isPspApiError(err, 'invoice_conflict')` narrows `err.details` to the shape of that code.
 - Webhooks are verified over the raw bytes in constant time, within a ±300 s window, and returned as typed events.
 - No runtime dependencies. It runs on Node.js 18+ and ships ESM and CommonJS builds with TypeScript types.
@@ -21,6 +21,10 @@ Node.js SDK for the PSP merchant API. Use it on your backend to accept crypto pa
 - [Payment widget](#payment-widget)
 - [Webhooks](#webhooks)
 - [Webhook settings and the delivery log](#webhook-settings-and-the-delivery-log)
+- [Balances, operations and statement](#balances-operations-and-statement)
+- [Deposits](#deposits)
+- [Payouts](#payouts)
+- [Networks and tariff](#networks-and-tariff)
 - [Errors](#errors)
 - [Retries and timeouts](#retries-and-timeouts)
 - [Request options and response details](#request-options-and-response-details)
@@ -90,23 +94,23 @@ const psp = new PspClient({
 });
 ```
 
-| Option                 | Default                   | Description                                                                                                                                                   |
-| ---------------------- | ------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `apiKey`               | `PSP_API_KEY`             | API key `psp_pk_test_…` / `psp_pk_live_…`. Older keys without the network prefix are testnet keys.                                                            |
-| `apiSecret`            | `PSP_API_SECRET`          | API secret of the same key and network. It is never sent: it only keys the HMAC.                                                                              |
-| `previousApiSecret`    | `PSP_API_PREVIOUS_SECRET` | Previous secret during a [rotation](#rotating-the-api-secret). Used only by `psp.webhook.verify()`.                                                           |
-| `baseUrl`              | `PSP_API_URL`             | API URL. It must be `https://`; plain `http://` is allowed only for `localhost` / `127.0.0.1` / `[::1]`, or anywhere with `allowInsecureHttp`.                |
-| `checkoutUrl`          | `PSP_CHECKOUT_URL`        | URL of the payment page for [payment widget](#payment-widget) links, e.g. `https://pay.psp.example`. `https://`, or `http://` on localhost.                   |
-| `timeoutMs`            | `180000`                  | Timeout of one attempt. The platform answers any request within 175 s. A shorter timeout can turn a slow success into an [unknown outcome](#unknown-outcome). |
-| `maxRetries`           | `4`                       | Retries after the first attempt. `0` turns retries off.                                                                                                       |
-| `retryBaseDelayMs`     | `1000`                    | First pause between attempts. It doubles with each retry: 1, 2, 4, 8 s, ±20 % jitter.                                                                         |
-| `maxRetryAfterSeconds` | `30`                      | Longest `Retry-After` the SDK waits for by itself. A longer one is thrown as an error with `retryAfterSeconds`.                                               |
-| `fetch`                | global `fetch`            | Your own `fetch`, e.g. one that goes through a proxy.                                                                                                         |
-| `userAgent`            | —                         | Your product name, prepended to the SDK `User-Agent`.                                                                                                         |
-| `allowInsecureHttp`    | `false`                   | Allows `http://` on hosts other than localhost, e.g. for an internal TLS-terminating proxy.                                                                   |
-| `onWarning`            | `process.emitWarning`     | Warnings: a request signed with the [previous key](#rotating-the-api-secret), a webhook signed with `previousApiSecret`.                                      |
-| `onResponse`           | —                         | Called after every HTTP attempt. See [Logging and monitoring](#logging-and-monitoring).                                                                       |
-| `onRetry`              | —                         | Called before every retry.                                                                                                                                    |
+| Option                 | Default                   | Description                                                                                                                                                                                                 |
+| ---------------------- | ------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `apiKey`               | `PSP_API_KEY`             | API key `psp_pk_test_…` / `psp_pk_live_…`. Older keys without the network prefix are testnet keys.                                                                                                          |
+| `apiSecret`            | `PSP_API_SECRET`          | API secret of the same key and network. It is never sent: it only keys the HMAC.                                                                                                                            |
+| `previousApiSecret`    | `PSP_API_PREVIOUS_SECRET` | Previous secret during a [rotation](#rotating-the-api-secret). Used only by `psp.webhook.verify()`.                                                                                                         |
+| `baseUrl`              | `PSP_API_URL`             | API URL. It must be `https://`; plain `http://` is allowed only for `localhost` / `127.0.0.1` / `[::1]`, or anywhere with `allowInsecureHttp`.                                                              |
+| `checkoutUrl`          | `PSP_CHECKOUT_URL`        | URL of the payment page for [payment widget](#payment-widget) links, e.g. `https://pay.psp.example`. `https://`, or `http://` on localhost.                                                                 |
+| `timeoutMs`            | `180000`                  | Timeout of one attempt. The platform answers any request within 175 s. A shorter timeout can turn a slow success into an [unknown outcome](#unknown-outcome). `payouts.create` always waits at least 180 s. |
+| `maxRetries`           | `4`                       | Retries after the first attempt. `0` turns retries off.                                                                                                                                                     |
+| `retryBaseDelayMs`     | `1000`                    | First pause between attempts. It doubles with each retry: 1, 2, 4, 8 s, ±20 % jitter.                                                                                                                       |
+| `maxRetryAfterSeconds` | `30`                      | Longest `Retry-After` the SDK waits for by itself. A longer one is thrown as an error with `retryAfterSeconds`.                                                                                             |
+| `fetch`                | global `fetch`            | Your own `fetch`, e.g. one that goes through a proxy.                                                                                                                                                       |
+| `userAgent`            | —                         | Your product name, prepended to the SDK `User-Agent`.                                                                                                                                                       |
+| `allowInsecureHttp`    | `false`                   | Allows `http://` on hosts other than localhost, e.g. for an internal TLS-terminating proxy.                                                                                                                 |
+| `onWarning`            | `process.emitWarning`     | Warnings: a request signed with the [previous key](#rotating-the-api-secret), a webhook signed with `previousApiSecret`.                                                                                    |
+| `onResponse`           | —                         | Called after every HTTP attempt. See [Logging and monitoring](#logging-and-monitoring).                                                                                                                     |
+| `onRetry`              | —                         | Called before every retry.                                                                                                                                                                                  |
 
 The constructor checks the options and throws a `TypeError` with a clear message for:
 
@@ -560,6 +564,127 @@ await psp.webhook.deliveries.redeliver(deliveryId); // a new cycle for a deliver
 
 `setUrl()` and `removeUrl()` may answer with `202` and `settings.sync.state === 'pending'`. In that case the platform finishes the change itself: read the result later with `get()`, and do not repeat the call.
 
+## Balances, operations and statement
+
+```ts
+const balances = await psp.balances.get(); // or { network: 'tron', asset: 'USDT' }
+// balances.items: per network and asset; balances.byCurrency: in total per currency; all as of balances.asOf
+const usdt = balances.items.find((b) => b.network === 'tron' && b.asset === 'USDT');
+usdt?.available; // can be withdrawn; amlHold, payoutHold and frozen are separate
+
+const page = await psp.operations.list({ type: ['deposit_credit', 'payout_capture'], from: new Date('2026-09-01') });
+for await (const op of psp.operations.listAll({ invoiceId })) {
+  // op.gross — came in, op.fee — our commission, op.net — the change of your funds
+}
+const operation = await psp.operations.get(operationId);
+
+const period = { from: '2026-09-01T00:00:00.000Z', to: '2026-10-01T00:00:00.000Z' }; // from inclusive, to exclusive
+const summary = await psp.operations.getSummary(period); // inGross, inFee, inNet, outGross, …, per network and asset
+const statement = await psp.operations.getStatement({ ...period, asset: 'USDT' }); // opening, …, closing
+const csv: string = await psp.operations.getStatement({ ...period, format: 'csv' }); // text/csv
+```
+
+An operation is one movement of funds: the credit of a payment with our commission, a hold for a payout, a write-off, the network fee of a payout. Operations are listed newest first by `postedAt`; `from` and `to` filter by it too.
+
+The statement has, per network and asset, the funds (`available + payoutHold + frozen`) at the start and the end of the period, and `closing = opening + inNet − outGross − outFee − outNetworkFee + adjustments`. Opening and closing come from the end-of-day (UTC) snapshots, so set the period at day boundaries.
+
+With `format: 'csv'` the method returns a string: the same rows as `text/csv` with a header and without a BOM, a file for a program. The return type follows `format`. `getResponseMeta()` has nothing for a string: log `requestId` from the [`onResponse`](#logging-and-monitoring) hook.
+
+## Deposits
+
+A deposit is a transfer in a network to an address of one of your invoices, and what the platform did with it. Find the payment a buyer reports by its hash:
+
+```ts
+const { items, totals } = await psp.deposits.list({ txHash: '9e02f72b…' });
+items[0]?.creditStatus; // 'credited', or aml_wait / aml_hold / aml_dirty / paused / …
+const deposit = await psp.deposits.get(depositId);
+
+for await (const d of psp.deposits.listAll({ creditStatus: ['aml_wait', 'aml_hold'], network: 'tron' })) {
+  // every deposit still held by the AML check
+}
+```
+
+The list is sorted by `blockTimestamp`, newest first. `totals` sums the whole filter, not one page, per network and asset. `gross`, `fee` and `net` are `"0"` until the deposit is credited.
+
+## Payouts
+
+A payout sends funds from your balance to an address. The path is quote → request (frozen at once) → approval by the platform → transfer in the network → confirmation. There are no webhooks about payouts: read the status with `get()`.
+
+```ts
+const quote = await psp.payouts.quote({
+  network: 'tron',
+  asset: 'USDT',
+  toAddress: 'TJCnKsPa7y5okkXvQAidZBzqx3QyQ6sxMW',
+  amount: '1000', // without amount: a quote for the maximum
+});
+// quote.commission, quote.networkFee, quote.debits (frozen per asset), quote.maxAmount, quote.limits
+
+const payout = await psp.payouts.create({
+  externalId: 'w-2290', // your request id, 1–128 characters
+  network: 'tron',
+  asset: 'USDT',
+  amount: '1000', // received by the recipient; our commission and the network fee come on top
+  toAddress: 'TJCnKsPa7y5okkXvQAidZBzqx3QyQ6sxMW',
+  quoteId: quote.quoteId, // optional: without it, or with an expired quote, the payout is computed again
+});
+payout.status; // 'pending_approval'
+
+const current = await psp.payouts.get(payout.id);
+const history = await psp.payouts.list({ externalId: 'w-2290' }); // the request and the platform's retries
+await psp.payouts.cancel(payout.id, { reason: 'Wrong address' }); // only in pending_approval
+```
+
+**Quotes.** A quote freezes nothing, lives 120 s and fits one request. At most 10 quotes a minute: more fail with `429 too_many_requests` (`details.scope === 'quote'`, `retryAfterSeconds`). Every call is a new quote, so the SDK repeats `quote()` only when it surely did not run.
+
+**Idempotency.** `create()` works like `invoices.create()`: choose the `externalId` before the first attempt and store it.
+
+- The same `externalId` with the same fields returns the payout created before, in its current state (status `200` instead of `201`). `quoteId` is not compared.
+- The same `externalId` with different fields fails with `409 payout_conflict`, and `details.payoutId` names the existing payout.
+
+So the SDK repeats `create()` after a lost connection, a timeout or `503 service_unavailable`. The platform may take up to 130 s to answer a payout request, so `create()` waits at least 180 s per attempt even if the client `timeoutMs` is lower (an explicit per-call `timeoutMs` is kept as given). On an [unknown outcome](#unknown-outcome), repeat with the same `externalId` or look for it with `list({ externalId })`.
+
+```ts
+import { isPspApiError } from '@qubiq-psp/sdk';
+
+try {
+  await psp.payouts.create(params);
+} catch (err) {
+  if (isPspApiError(err, 'payout_conflict')) {
+    const existing = await psp.payouts.get(err.details.payoutId);
+  } else if (isPspApiError(err, 'insufficient_balance')) {
+    console.log(`At most ${err.details.maxAmount} ${err.details.asset}`);
+  } else if (isPspApiError(err, 'limit_exceeded')) {
+    console.log(`${err.details.limit}: ${err.details.max}`);
+  } else throw err;
+}
+```
+
+| `status`                              | Meaning                                                                     | You can cancel |
+| ------------------------------------- | --------------------------------------------------------------------------- | -------------- |
+| `pending_approval`                    | Waits for approval, the funds are frozen; `expired` after 72 h              | yes            |
+| `approved`, `dispatched`, `submitted` | Approved, being sent to the network or sent                                 | no             |
+| `manual_review`                       | Being processed by the platform: show "Processing"                          | no             |
+| `confirmed`                           | Confirmed in the network: `txHash`, `blockNumber`, `networkFeeCharged`      | —              |
+| `failed`                              | The transfer did not go through (`failureStage`, `failureReason`), refunded | —              |
+| `rejected`, `cancelled`, `expired`    | Rejected by the platform (`reason`), cancelled, or not approved; refunded   | —              |
+
+After `failed`, `rejected` or `expired`, a new attempt is a new request with a new `externalId`. A retry by the platform after `failed` is a new payout with the same `externalId` and `retryOfId`.
+
+**Network fee.** A transfer is paid in the native coin of the network (`TRX`, `ETH`, `POL`) at the actual cost, separately from our commission. `networkFee.asset` tells what pays it: the native coin from your balance when it covers the ceiling, otherwise the payout asset at a rate. The ceiling (`networkFee.amount`) is frozen, what was burnt is charged (`networkFeeCharged`), the rest is returned.
+
+## Networks and tariff
+
+```ts
+const { items: networks } = await psp.networks.list();
+// network, chain, nativeCurrency, explorerTxUrl, invoicesEnabled, payoutsEnabled,
+// assets: [{ asset, decimals, minCreditAmount, payoutMin, payoutMax, … }]
+
+const tariff = await psp.tariff.get();
+// tariff.rules: [{ operationType: 'deposit' | 'payout' | 'cross_network_payout', network, asset, percent, fixed, minFee, maxFee, invoiceMin, invoiceMax, … }]
+```
+
+The platform turns on new EVM networks without an SDK release: take the networks and the assets from `networks.list()` instead of hardcoding them. Invoice amount limits are in the `deposit` rules of the tariff (`invoiceMin`, `invoiceMax`).
+
 ## Errors
 
 Every error the SDK throws extends `PspError`:
@@ -582,33 +707,41 @@ if (isPspApiError(err, 'amount_out_of_range')) err.details.min; // string
 if (isPspApiError(err, 'too_many_requests')) err.details.retryAfterSeconds; // number
 ```
 
-| HTTP | `errorCode`                                        | `details`                                         | What to do                                             |
-| ---- | -------------------------------------------------- | ------------------------------------------------- | ------------------------------------------------------ |
-| 400  | `invalid_schema`                                   | `{ fields: [{ field, message }] }`                | Fix the request                                        |
-| 400  | `unknown_network`, `unknown_asset`                 | `{ network }`, `{ network, asset }`               | Use a connected network and asset                      |
-| 400  | `network_disabled`, `asset_disabled`               | `{ network, asset?, operation }`                  | Another asset, or later                                |
-| 400  | `amount_out_of_range`                              | `{ network, asset, min, max, actual }`            | An amount from `min` to `max`                          |
-| 400  | `invalid_url`                                      | `{ field: 'url', reason }`                        | Fix the webhook URL                                    |
-| 401  | `api_auth_failed`                                  | `{ reason, header?, serverTime?, stringToSign? }` | See [below](#signature-errors); do not retry in a loop |
-| 403  | `ip_not_allowed`                                   | `{ ip }`                                          | Add the IP to the allowlist in the cabinet             |
-| 403  | `merchant_blocked`, `account_closed`               | `null`                                            | Contact support                                        |
-| 403  | `merchant_archived`                                | `null`                                            | The owner restores the merchant in the cabinet         |
-| 403  | `merchant_restricted`                              | `{ capability }`                                  | The right is off: contact support                      |
-| 404  | `not_found`                                        | `{ object, id }`                                  | Wrong id, or an object of another merchant             |
-| 409  | `invoice_conflict`                                 | `{ invoiceId }`                                   | Read that invoice, or use a new `externalId`           |
-| 409  | `invalid_state`                                    | `{ object, id, status, allowed }`                 | Read the object: the change is not possible now        |
-| 409  | `invoice_has_payments`                             | `{ received, pending, held }`                     | Do not cancel: wait for the outcome                    |
-| 409  | `tariff_not_configured`                            | `{ operationType, network, asset }`               | Contact support                                        |
-| 409  | `url_not_set`, `secret_not_set`, `merchant_paused` | `null`                                            | Set the URL / retry in a minute / contact support      |
-| 409  | `net_not_configured`                               | `{ net }`                                         | The network of the key is not set up yet               |
-| 413  | `payload_too_large`                                | `{ maxBytes }`                                    | Bodies are limited to 64 KiB                           |
-| 429  | `too_many_requests`                                | `{ scope, limit, retryAfterSeconds }`             | Wait `retryAfterSeconds`                               |
-| 500  | `internal_error`                                   | `null`                                            | Retried once; report `requestId` to support            |
-| 503  | `maintenance`                                      | `{ message }`                                     | Planned works; retry after `retryAfterSeconds` (300)   |
-| 503  | `service_unavailable`                              | `null` or `{ outcome: 'unknown' }`                | Retried automatically                                  |
-| 503  | `address_pool_unavailable`                         | `{ network }`                                     | Retried automatically with the same `externalId`       |
-| 503  | `operations_paused`                                | `{ flag, reason }`                                | The platform paused the operation: retry later         |
-| 503  | `net_unavailable`                                  | `{ net }`                                         | Retried automatically                                  |
+| HTTP | `errorCode`                                        | `details`                                            | What to do                                             |
+| ---- | -------------------------------------------------- | ---------------------------------------------------- | ------------------------------------------------------ |
+| 400  | `invalid_schema`                                   | `{ fields: [{ field, message }] }`                   | Fix the request                                        |
+| 400  | `unknown_network`, `unknown_asset`                 | `{ network }`, `{ network, asset }`                  | Use a connected network and asset                      |
+| 400  | `network_disabled`, `asset_disabled`               | `{ network, asset?, operation }`                     | Another asset, or later                                |
+| 400  | `amount_out_of_range`                              | `{ network, asset, min, max, actual }`               | An amount from `min` to `max`                          |
+| 400  | `invalid_url`                                      | `{ field: 'url', reason }`                           | Fix the webhook URL                                    |
+| 400  | `invalid_address`, `own_address`                   | `{ network, addresses }`, `{ network, address }`     | Check the recipient address of the payout              |
+| 400  | `limit_exceeded`                                   | `{ limit, network, asset, max, actual }`             | Another payout amount, or the next UTC day             |
+| 400  | `insufficient_balance`                             | `{ network, asset, available, required, maxAmount }` | Pay out at most `maxAmount`                            |
+| 400  | `network_fee_too_high`                             | `{ network, networkFeeEstimated, maxNetworkFee, … }` | The network is expensive now: quote again later        |
+| 401  | `api_auth_failed`                                  | `{ reason, header?, serverTime?, stringToSign? }`    | See [below](#signature-errors); do not retry in a loop |
+| 403  | `ip_not_allowed`                                   | `{ ip }`                                             | Add the IP to the allowlist in the cabinet             |
+| 403  | `merchant_blocked`, `account_closed`               | `null`                                               | Contact support                                        |
+| 403  | `merchant_archived`                                | `null`                                               | The owner restores the merchant in the cabinet         |
+| 403  | `merchant_restricted`                              | `{ capability }`                                     | The right is off: contact support                      |
+| 404  | `not_found`                                        | `{ object, id }`                                     | Wrong id, or an object of another merchant             |
+| 409  | `invoice_conflict`                                 | `{ invoiceId }`                                      | Read that invoice, or use a new `externalId`           |
+| 409  | `payout_conflict`                                  | `{ payoutId }`                                       | Read that payout                                       |
+| 409  | `network_service_rejected`                         | `{ network }`                                        | Check the address, quote again later                   |
+| 409  | `invalid_state`                                    | `{ object, id, status, allowed }`                    | Read the object: the change is not possible now        |
+| 409  | `invoice_has_payments`                             | `{ received, pending, held }`                        | Do not cancel: wait for the outcome                    |
+| 409  | `tariff_not_configured`                            | `{ operationType, network, asset }`                  | Contact support                                        |
+| 409  | `url_not_set`, `secret_not_set`, `merchant_paused` | `null`                                               | Set the URL / retry in a minute / contact support      |
+| 409  | `net_not_configured`                               | `{ net }`                                            | The network of the key is not set up yet               |
+| 413  | `payload_too_large`                                | `{ maxBytes }`                                       | Bodies are limited to 64 KiB                           |
+| 429  | `too_many_requests`                                | `{ scope, limit, retryAfterSeconds }`                | Wait `retryAfterSeconds`                               |
+| 500  | `internal_error`                                   | `null`                                               | Retried once; report `requestId` to support            |
+| 503  | `maintenance`                                      | `{ message }`                                        | Planned works; retry after `retryAfterSeconds` (300)   |
+| 503  | `service_unavailable`                              | `null` or `{ outcome: 'unknown' }`                   | Retried automatically                                  |
+| 503  | `address_pool_unavailable`                         | `{ network }`                                        | Retried automatically with the same `externalId`       |
+| 503  | `operations_paused`                                | `{ flag, reason }`                                   | The platform paused the operation: retry later         |
+| 503  | `net_unavailable`                                  | `{ net }`                                            | Retried automatically                                  |
+| 503  | `rate_unavailable`                                 | `{ reason, currency }`                               | Quote again later, or keep the native coin on balance  |
+| 503  | `network_service_unavailable`                      | `{ network }`                                        | Quote again later                                      |
 
 New codes and new `details` fields may appear in new platform versions. Handle unknown codes generically.
 
@@ -624,20 +757,20 @@ New codes and new `details` fields may appear in new platform versions. Handle u
 
 ### Unknown outcome
 
-`PspConnectionError` with `outcome: 'unknown'`, `PspTimeoutError`, and `503 service_unavailable` with `details.outcome === 'unknown'` all mean the request may have been applied. For `invoices.create`, repeat it with the **same** `externalId` and fields. You get the invoice that was created, never a second one. `outcome: 'not_sent'` (connection refused, DNS failure) means the request surely did not reach the platform.
+`PspConnectionError` with `outcome: 'unknown'`, `PspTimeoutError`, and `503 service_unavailable` with `details.outcome === 'unknown'` all mean the request may have been applied. For `invoices.create` and `payouts.create`, repeat it with the **same** `externalId` and fields. You get the invoice or the payout that was created, never a second one. `outcome: 'not_sent'` (connection refused, DNS failure) means the request surely did not reach the platform.
 
 ## Retries and timeouts
 
 The SDK repeats a failed attempt by itself, following the platform rules, with a new timestamp, nonce and signature each time. The body and `externalId` stay the same bytes.
 
-| Method                                                                                          | Repeated automatically                                                                  |
-| ----------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------- |
-| `account.get`, `invoices.list` / `get` / `listEvents`, `webhook.get`, `deliveries.list` / `get` | yes                                                                                     |
-| `invoices.create`                                                                               | yes: same `externalId`, no duplicates                                                   |
-| `invoices.cancel`                                                                               | yes: idempotent by state                                                                |
-| `webhook.setUrl`, `webhook.removeUrl`                                                           | yes: the same URL is a no-op; `202` is a success                                        |
-| `deliveries.redeliver`                                                                          | at most once                                                                            |
-| `webhook.sendTest`                                                                              | only if it surely did not run (`not_sent`, `503 service_unavailable` without `outcome`) |
+| Method                                                                                  | Repeated automatically                                                                  |
+| --------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------- |
+| every read: `get`, `list`, `listAll`, `getSummary`, `getStatement`, … of every resource | yes                                                                                     |
+| `invoices.create`, `payouts.create`                                                     | yes: same `externalId`, no duplicates                                                   |
+| `invoices.cancel`, `payouts.cancel`                                                     | yes: idempotent by state                                                                |
+| `webhook.setUrl`, `webhook.removeUrl`                                                   | yes: the same URL is a no-op; `202` is a success                                        |
+| `deliveries.redeliver`                                                                  | at most once                                                                            |
+| `webhook.sendTest`, `payouts.quote`                                                     | only if it surely did not run (`not_sent`, `503 service_unavailable` without `outcome`) |
 
 Errors that trigger a retry:
 
@@ -648,7 +781,7 @@ Errors that trigger a retry:
 - `429` and `503 maintenance`, after `Retry-After`, when it is at most `maxRetryAfterSeconds` (30 s);
 - `401 timestamp_out_of_window`, once.
 
-Never retried: `400`, `403`, `404`, `409`, any other `401`, `503 operations_paused`, and TLS certificate errors.
+Never retried: `400`, `403`, `404`, `409`, any other `401`, `503 operations_paused`, `rate_unavailable`, `network_service_unavailable`, and TLS certificate errors.
 
 Pauses: 1, 2, 4, 8 s (`retryBaseDelayMs` doubled per retry, ±20 % jitter), up to `maxRetries` (4) retries. Then the last error is thrown, and `err.context.attempts` tells how many attempts were made.
 
@@ -666,7 +799,7 @@ const invoice = await psp.invoices.create(params, {
 });
 ```
 
-`getResponseMeta(result)` returns the HTTP details of any object an SDK method returned:
+`getResponseMeta(result)` returns the HTTP details of any object an SDK method returned (not of the CSV statement, which is a string):
 
 ```ts
 const meta = getResponseMeta(invoice);
@@ -741,6 +874,8 @@ The SDK is written in strict TypeScript, and every request and response is typed
 
 - `Invoice`, `InvoiceWithPayments`, `InvoicePayment`, `InvoiceStatus`;
 - `WebhookSettings`, `Delivery`, `DeliveryWithAttempts`;
+- `MerchantBalances`, `Operation`, `OperationsSummary`, `Statement`, `Deposit`, `DepositPage`;
+- `Payout`, `PayoutQuote`, `PayoutStatus`, `Network`, `Tariff`;
 - `WebhookEvent`, `WebhookPayment`;
 - `PspErrorCode`, `PspErrorDetailsMap`;
 - `PspClientOptions`, `RequestOptions` and the rest.
