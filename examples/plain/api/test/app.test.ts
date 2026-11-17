@@ -154,6 +154,30 @@ describe('the built UI (APP_UI_DIR)', () => {
     expect((await app.inject({ method: 'POST', url: '/somewhere' })).statusCode).toBe(404);
   });
 
+  it('never serves a file outside APP_UI_DIR (traversal, encoded separators, dotfiles)', async () => {
+    const parent = mkdtempSync(join(tmpdir(), 'plain-ui-parent-'));
+    writeFileSync(join(parent, 'secret.txt'), 'outside the UI');
+    const dir = join(parent, 'ui');
+    mkdirSync(join(dir, 'assets'), { recursive: true });
+    writeFileSync(join(dir, 'index.html'), '<!doctype html><title>ui</title>');
+    writeFileSync(join(dir, '.env'), 'PSP_API_SECRET=nope');
+    const { app } = await makeApp({ APP_UI_DIR: dir });
+    for (const url of [
+      '/../secret.txt',
+      '/%2e%2e/secret.txt',
+      '/..%2fsecret.txt',
+      '/..%5csecret.txt',
+      '/assets/..%2f..%2fsecret.txt',
+      '/assets/%2e%2e/%2e%2e/secret.txt',
+      '//secret.txt',
+      '/.env',
+    ]) {
+      const res = await app.inject({ method: 'GET', url });
+      expect(res.body, url).not.toContain('outside the UI');
+      expect(res.body, url).not.toContain('PSP_API_SECRET');
+    }
+  });
+
   it('without APP_UI_DIR answers the API only', async () => {
     const { app } = await makeApp();
     const res = await app.inject({ method: 'GET', url: '/' });

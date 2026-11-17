@@ -105,9 +105,15 @@ export async function buildApp({ config, logger = true, fetch: fetchImpl = fetch
       wildcard: true,
       cacheControl: false, // set below
       index: ['index.html'],
-      setHeaders: (res, path) => {
-        for (const [k, v] of Object.entries(headers)) res.setHeader(k, v);
-        res.setHeader('Cache-Control', path.includes('/assets/') ? 'public, max-age=31536000, immutable' : 'no-cache');
+      // @fastify/static serves dotfiles by default ('allow'); a UI folder has none to serve
+      dotfiles: 'ignore',
+      // @fastify/static 10: a FastifyReply, and these headers win over the ones the file sender sets
+      setHeaders: (reply, path) => {
+        void reply.headers(headers);
+        void reply.header(
+          'Cache-Control',
+          path.includes('/assets/') ? 'public, max-age=31536000, immutable' : 'no-cache',
+        );
       },
     });
   }
