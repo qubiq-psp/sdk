@@ -12,8 +12,8 @@ export interface paths {
             cookie?: never;
         };
         /**
-         * Мерчант, ключ запроса и время сервера
-         * @description Собственный метод gateway: соседей не вызывает. 200 значит, что keyId, секрет, строка подписи, часы и список IP настроены верно. Подходит ключ current или previous до graceUntil; прежний ключ — заголовок X-Api-Key-Deprecated. Параметров нет. Допуск R.
+         * The merchant, the key of the request and the server time
+         * @description Own method of gateway: calls no neighbour. 200 means that keyId, the secret, the signature string, the clock and the IP list are set up right. The key current fits, or previous until graceUntil; the previous key — the header X-Api-Key-Deprecated. No parameters. Admission R.
          */
         get: operations["getAccount"];
         put?: never;
@@ -32,14 +32,14 @@ export interface paths {
             cookie?: never;
         };
         /**
-         * Инвойсы мерчанта
-         * @description balance-service listInvoices, класс B-default (15 с), merchantId — в query. Новые сверху. Допуск R.
+         * Invoices of the merchant
+         * @description balance-service listInvoices, class B-default (15 s), merchantId — into the query. Newest first. Admission R.
          */
         get: operations["listInvoices"];
         put?: never;
         /**
-         * Создаёт инвойс и выдаёт адрес оплаты
-         * @description balance-service createInvoice, класс B-network (60 с), merchantId — в тело. 201 — новый инвойс, 200 — повтор с тем же externalId и теми же полями. Таймаут, обрыв и 503 — до трёх повторов, 503 address_pool_unavailable — ещё один через 2 с; исход неизвестен — 503 service_unavailable {outcome: "unknown"}. Допуск Wb, Ci.
+         * Creates an invoice and assigns a payment address
+         * @description balance-service createInvoice, class B-network (60 s), merchantId — into the body. 201 — a new invoice, 200 — a repeat with the same externalId and the same fields. A timeout, a broken connection and 503 — up to three retries, 503 address_pool_unavailable — one more after 2 s; the outcome is unknown — 503 service_unavailable {outcome: "unknown"}. Admission Wb, Ci.
          */
         post: operations["createInvoice"];
         delete?: never;
@@ -56,8 +56,8 @@ export interface paths {
             cookie?: never;
         };
         /**
-         * Инвойс с платежами
-         * @description balance-service getInvoice, класс B-default. У платежей в aml только status. Допуск R.
+         * Invoice with payments
+         * @description balance-service getInvoice, class B-default. Payments have only status in aml. Admission R.
          */
         get: operations["getInvoice"];
         put?: never;
@@ -76,8 +76,8 @@ export interface paths {
             cookie?: never;
         };
         /**
-         * История инвойса
-         * @description balance-service listInvoiceEvents, класс B-default. В payload.payment.aml нет flags. Допуск R.
+         * History of the invoice
+         * @description balance-service listInvoiceEvents, class B-default. payload.payment.aml has no flags. Admission R.
          */
         get: operations["listInvoiceEvents"];
         put?: never;
@@ -98,8 +98,8 @@ export interface paths {
         get?: never;
         put?: never;
         /**
-         * Отменяет инвойс без поступлений
-         * @description balance-service cancelInvoice, класс B-default, merchantId — в тело. Тело необязательно. Идемпотентна по состоянию. Допуск W: заблокированный мерчант тоже отменяет.
+         * Cancels an invoice with no incoming payments
+         * @description balance-service cancelInvoice, class B-default, merchantId — into the body. The body is optional. Idempotent by state. Admission W: a blocked merchant can cancel too.
          */
         post: operations["cancelInvoice"];
         delete?: never;
@@ -116,8 +116,8 @@ export interface paths {
             cookie?: never;
         };
         /**
-         * Балансы по сети и активу и сводно по валюте
-         * @description balance-service getMerchantBalances, класс B-default, merchantId — в пути. Допуск R.
+         * Balances per network and asset, and in total per currency
+         * @description balance-service getMerchantBalances, class B-default, merchantId — into the path. Admission R.
          */
         get: operations["getMerchantBalances"];
         put?: never;
@@ -136,8 +136,8 @@ export interface paths {
             cookie?: never;
         };
         /**
-         * Операции «зашло — комиссия — доступно»
-         * @description balance-service listMerchantOperations, класс B-default, merchantId — в пути. Допуск R.
+         * Operations "received — commission — available"
+         * @description balance-service listMerchantOperations, class B-default, merchantId — into the path. Admission R.
          */
         get: operations["listMerchantOperations"];
         put?: never;
@@ -156,8 +156,8 @@ export interface paths {
             cookie?: never;
         };
         /**
-         * Итоги операций за период
-         * @description balance-service getMerchantOperationsSummary, класс B-report (45 с). from и to обязательны. Допуск R.
+         * Totals of the operations for a period
+         * @description balance-service getMerchantOperationsSummary, class B-report (45 s). from and to are required. Admission R.
          */
         get: operations["getMerchantOperationsSummary"];
         put?: never;
@@ -176,8 +176,8 @@ export interface paths {
             cookie?: never;
         };
         /**
-         * Выписка за период в JSON или CSV
-         * @description balance-service getMerchantOperationsStatement, класс B-report (45 с). format=csv — text/csv; charset=utf-8, ответ balance-service байт в байт, без BOM. Допуск R.
+         * Statement for a period in JSON or CSV
+         * @description balance-service getMerchantOperationsStatement, class B-report (45 s). format=csv — text/csv; charset=utf-8, the answer of balance-service byte for byte, without a BOM. Admission R.
          */
         get: operations["getMerchantOperationsStatement"];
         put?: never;
@@ -196,8 +196,8 @@ export interface paths {
             cookie?: never;
         };
         /**
-         * Одна операция
-         * @description balance-service getMerchantOperation, класс B-default, merchantId — в пути. Допуск R.
+         * One operation
+         * @description balance-service getMerchantOperation, class B-default, merchantId — into the path. Admission R.
          */
         get: operations["getMerchantOperation"];
         put?: never;
@@ -216,8 +216,8 @@ export interface paths {
             cookie?: never;
         };
         /**
-         * Депозиты мерчанта и статус зачисления
-         * @description balance-service listMerchantDeposits, класс B-default. В aml только status; totals — итоги всего фильтра по активам. Допуск R.
+         * Deposits of the merchant and the credit status
+         * @description balance-service listMerchantDeposits, class B-default. Only status in aml; totals — the totals of the whole filter per asset. Admission R.
          */
         get: operations["listMerchantDeposits"];
         put?: never;
@@ -236,8 +236,8 @@ export interface paths {
             cookie?: never;
         };
         /**
-         * Один депозит
-         * @description balance-service getMerchantDeposit, класс B-default. В aml только status. Допуск R.
+         * One deposit
+         * @description balance-service getMerchantDeposit, class B-default. Only status in aml. Admission R.
          */
         get: operations["getMerchantDeposit"];
         put?: never;
@@ -258,8 +258,8 @@ export interface paths {
         get?: never;
         put?: never;
         /**
-         * Котировка выплаты
-         * @description balance-service quotePayout, класс B-network (60 с), merchantId — в тело. Повторы только при отказе в соединении и 503. Лимит котировок balance-service — 429 too_many_requests {scope: "quote"} и Retry-After. Допуск Wb, Cp.
+         * Payout quote
+         * @description balance-service quotePayout, class B-network (60 s), merchantId — into the body. Retries only on a refused connection and 503. The quote limit of balance-service — 429 too_many_requests {scope: "quote"} and Retry-After. Admission Wb, Cp.
          */
         post: operations["quotePayout"];
         delete?: never;
@@ -276,14 +276,14 @@ export interface paths {
             cookie?: never;
         };
         /**
-         * Выплаты мерчанта
-         * @description balance-service listPayouts, класс B-default, merchantId — в query. Новые сверху. Допуск R.
+         * Payouts of the merchant
+         * @description balance-service listPayouts, class B-default, merchantId — into the query. Newest first. Admission R.
          */
         get: operations["listPayouts"];
         put?: never;
         /**
-         * Заявка на выплату
-         * @description balance-service createPayout, класс B-payout (130 с), merchantId — в тело. 201 — заявка в pending_approval, 200 — повтор с тем же externalId. Повторы только внутри запроса; исход неизвестен — 503 service_unavailable {outcome: "unknown"}. Допуск Wb, Cp.
+         * Payout request
+         * @description balance-service createPayout, class B-payout (130 s), merchantId — into the body. 201 — the request in pending_approval, 200 — a repeat with the same externalId. Retries only within the request; the outcome is unknown — 503 service_unavailable {outcome: "unknown"}. Admission Wb, Cp.
          */
         post: operations["createPayout"];
         delete?: never;
@@ -300,8 +300,8 @@ export interface paths {
             cookie?: never;
         };
         /**
-         * Одна выплата
-         * @description balance-service getPayout, класс B-default, merchantId — в query. Допуск R.
+         * One payout
+         * @description balance-service getPayout, class B-default, merchantId — into the query. Admission R.
          */
         get: operations["getPayout"];
         put?: never;
@@ -322,8 +322,8 @@ export interface paths {
         get?: never;
         put?: never;
         /**
-         * Отменяет заявку до одобрения
-         * @description balance-service cancelPayout, класс B-default, merchantId — в тело. Только pending_approval. Допуск W: заблокированный мерчант тоже отменяет.
+         * Cancels a request before its approval
+         * @description balance-service cancelPayout, class B-default, merchantId — into the body. Only pending_approval. Admission W: a blocked merchant can cancel too.
          */
         post: operations["cancelPayout"];
         delete?: never;
@@ -340,8 +340,8 @@ export interface paths {
             cookie?: never;
         };
         /**
-         * Сети и активы
-         * @description balance-service listNetworks, класс B-default; merchantId методу не нужен. Допуск R.
+         * Networks and assets
+         * @description balance-service listNetworks, class B-default; the method needs no merchantId. Admission R.
          */
         get: operations["listNetworks"];
         put?: never;
@@ -360,8 +360,8 @@ export interface paths {
             cookie?: never;
         };
         /**
-         * Тариф мерчанта
-         * @description balance-service getMerchantTariff, класс B-default. Только имя плана, правила без id и автора и asOf. Допуск R.
+         * Tariff of the merchant
+         * @description balance-service getMerchantTariff, class B-default. Only the name of the plan, the rules without id and author, and asOf. Admission R.
          */
         get: operations["getMerchantTariff"];
         put?: never;
@@ -380,19 +380,19 @@ export interface paths {
             cookie?: never;
         };
         /**
-         * Настройки вебхука
-         * @description webhook-service getWebhookSettings, класс W-default (10 с): без secretFingerprint, pausedAt, webhookConfiguredAt, createdAt, updatedAt, с блоком sync. secretSet = false без задачи secret — задача ставится сразу. Допуск R.
+         * Webhook settings
+         * @description webhook-service getWebhookSettings, class W-default (10 s): without secretFingerprint, pausedAt, webhookConfiguredAt, createdAt, updatedAt, with the block sync. secretSet = false without a secret task — the task is queued at once. Admission R.
          */
         get: operations["getWebhookSettings"];
         /**
-         * Задаёт или меняет URL вебхуков
-         * @description Задача url в очереди синхронизации, первая попытка — в запросе. 200 — webhook-service подтвердил (URL после его нормализации); 202 — сохраняется, sync.state = pending, поля webhook-service — null; 400 invalid_url {field: "url", reason} — прежний URL в силе. Письмо webhook_url_changed, если URL изменился. Допуск W.
+         * Sets or changes the webhook URL
+         * @description A url task in the sync queue, the first attempt is within the request. 200 — webhook-service confirmed (the URL after its normalisation); 202 — being saved, sync.state = pending, the fields of webhook-service are null; 400 invalid_url {field: "url", reason} — the previous URL stays in force. The email webhook_url_changed if the URL changed. Admission W.
          */
         put: operations["setWebhookUrl"];
         post?: never;
         /**
-         * Удаляет URL вебхуков
-         * @description Как setWebhookUrl с desired_url = null: 200 — удалён (webhookUrl: null, deliveryState: no_url), 202 — удаление не подтверждено. Письмо — только если URL был. Тела нет. Допуск W.
+         * Removes the webhook URL
+         * @description Like setWebhookUrl with desired_url = null: 200 — removed (webhookUrl: null, deliveryState: no_url), 202 — the removal is not confirmed. The email — only if there was a URL. No body. Admission W.
          */
         delete: operations["removeWebhookUrl"];
         options?: never;
@@ -410,8 +410,8 @@ export interface paths {
         get?: never;
         put?: never;
         /**
-         * Тестовый вебхук с результатом в ответе
-         * @description Не чаще раза в webhooks.testIntervalSeconds (10 с) на мерчанта, общий для API и кабинета: раньше — 429 too_many_requests {scope: "webhook_test"}. webhook-service sendTestWebhook, класс W-test (40 с), без повторов: таймаут — 503 service_unavailable {outcome: "unknown"}. 201 — доставка kind = test, попытка с signedWith: current. Допуск Wb.
+         * Test webhook with the result in the answer
+         * @description At most once in webhooks.testIntervalSeconds (10 s) per merchant, shared by the API and the cabinet: earlier — 429 too_many_requests {scope: "webhook_test"}. webhook-service sendTestWebhook, class W-test (40 s), no retries: a timeout — 503 service_unavailable {outcome: "unknown"}. 201 — a delivery kind = test, an attempt with signedWith: current. Admission Wb.
          */
         post: operations["sendTestWebhook"];
         delete?: never;
@@ -428,8 +428,8 @@ export interface paths {
             cookie?: never;
         };
         /**
-         * Журнал доставок
-         * @description webhook-service listDeliveries, класс W-default (10 с). Без тел и попыток, новые сверху. Допуск R.
+         * Delivery log
+         * @description webhook-service listDeliveries, class W-default (10 s). Without bodies and attempts, newest first. Admission R.
          */
         get: operations["listDeliveries"];
         put?: never;
@@ -448,8 +448,8 @@ export interface paths {
             cookie?: never;
         };
         /**
-         * Доставка с телом и попытками
-         * @description Два параллельных вызова webhook-service: getDelivery и getWebhookSettings, класс W-default. У попыток вместо signatureKeyFingerprint — signedWith: current, previous или null (настройки не прочитались). Допуск R.
+         * Delivery with the body and the attempts
+         * @description Two parallel calls of webhook-service: getDelivery and getWebhookSettings, class W-default. The attempts have, instead of signatureKeyFingerprint, signedWith: current, previous or null (the settings could not be read). Admission R.
          */
         get: operations["getDelivery"];
         put?: never;
@@ -470,8 +470,8 @@ export interface paths {
         get?: never;
         put?: never;
         /**
-         * Отправляет доставку ещё раз
-         * @description webhook-service redeliverDelivery, класс W-default. Тела нет. Один повтор, и только при обрыве соединения до ответа. 409 secret_not_set — gateway ставит задачу secret. Допуск Wb.
+         * Sends a delivery again
+         * @description webhook-service redeliverDelivery, class W-default. No body. One retry, and only when the connection breaks before the answer. 409 secret_not_set — gateway queues a secret task. Admission Wb.
          */
         post: operations["redeliverDelivery"];
         delete?: never;
@@ -486,19 +486,19 @@ export interface components {
     schemas: {
         AccountApiKey: {
             /**
-             * @description X-Api-Key этого запроса
+             * @description X-Api-Key of this request
              * @example psp_pk_3Kd9Lm2Qx7Rt5Vb8Nw1Hc4Zp
              */
             keyId: string;
             /**
-             * @description previous — запрос подписан прежним секретом после смены секрета
+             * @description previous — the request is signed with the previous secret after a rotation of the secret
              * @example current
              * @enum {string}
              */
             status: "current" | "previous";
             /**
              * Format: date-time
-             * @description До какого момента действует прежний ключ; у current — null
+             * @description Until when the previous key works; null for current
              * @example 2026-09-29T15:00:00.000Z
              */
             graceUntil: string | null;
@@ -512,7 +512,7 @@ export interface components {
             /** @example shop-example */
             name: string;
             /**
-             * @description Мерчант в архиве (403 merchant_archived) и закрытый пользователь (403 account_closed) ответа не получают
+             * @description An archived merchant (403 merchant_archived) and a closed user (403 account_closed) get no answer
              * @example active
              * @enum {string}
              */
@@ -523,7 +523,7 @@ export interface components {
             payoutsEnabled: boolean;
             apiKey: components["schemas"]["AccountApiKey"];
             /**
-             * @description Время сервера, unix-секунды
+             * @description Server time, unix seconds
              * @example 1790683170
              */
             serverTime: number;
@@ -637,14 +637,14 @@ export interface components {
         };
         SendTestWebhookDto: {
             /**
-             * @description Текст в data.message тестового вебхука
+             * @description Text in data.message of the test webhook
              * @example Технические работы, платежи временно не принимаются
              */
             message?: string;
         };
         SetWebhookUrlDto: {
             /**
-             * @description URL вебхуков. Только https://, публичный хост — проверяет webhook-service: отказ — 400 invalid_url
+             * @description Webhook URL. Only https://, a public host — webhook-service checks it: a refusal — 400 invalid_url
              * @example https://shop.example.com/psp/webhooks
              */
             url: string;
@@ -928,7 +928,7 @@ export interface components {
             createdAt: string;
             requestHeaders: components["schemas"]["V1DeliveryRequestHeaders"];
             /**
-             * @description Каким секретом подписана попытка: current — текущим, previous — не текущим (прежним до смены), null — неизвестно
+             * @description Which secret signed the attempt: current — the current one, previous — not the current one (the previous one before the rotation), null — unknown
              * @example current
              * @enum {string|null}
              */
@@ -1207,7 +1207,7 @@ export interface components {
              */
             dropReason: "fork" | "tx_failed" | null;
             /**
-             * @description How the payment is matched to the invoice: in_time, after_final, late, wrong_asset
+             * @description How the payment is matched to the invoice: in_time, after_final, late, wrong_asset; dust — below minCreditAmount of the asset, not credited to the invoice (result null, applied "0")
              * @example in_time
              * @enum {string|null}
              */
@@ -1585,19 +1585,19 @@ export interface components {
              */
             depositStatus: "detected" | "confirmed" | "dropped";
             /**
-             * @description How the payment is matched to the invoice: in_time, after_final, late, wrong_asset
+             * @description How the payment is matched to the invoice: in_time, after_final, late, wrong_asset; dust — below minCreditAmount of the asset, not credited to the invoice (result null, applied "0")
              * @example in_time
              * @enum {string}
              */
             matchKind: "in_time" | "after_final" | "late" | "wrong_asset" | "orphan" | "unknown_address" | "dust" | "wrong_network" | "unattributed_native";
             /**
-             * @description exact, underpaid, overpaid for in_time and after_final after crediting; otherwise null
+             * @description exact, underpaid, overpaid for in_time and after_final after crediting; otherwise null (late, wrong_asset, dust, not credited yet)
              * @example exact
              * @enum {string|null}
              */
             result: "exact" | "underpaid" | "overpaid" | null;
             /**
-             * @description Part that closed the invoice amount; "0" at late and wrong_asset
+             * @description Part that closed the invoice amount; "0" at late, wrong_asset and dust
              * @example 0
              */
             applied: string;
@@ -2046,13 +2046,13 @@ export interface components {
              */
             paymentKind: "exact" | "underpaid" | "overpaid" | "late" | "wrong_asset" | "unallocated" | "dust" | null;
             /**
-             * @description exact, underpaid, overpaid for in_time and after_final after crediting; otherwise null
+             * @description exact, underpaid, overpaid for in_time and after_final after crediting; otherwise null (late, wrong_asset, dust, not credited yet)
              * @example exact
              * @enum {string|null}
              */
             paymentResult: "exact" | "underpaid" | "overpaid" | null;
             /**
-             * @description How the payment is matched to the invoice: in_time, after_final, late, wrong_asset
+             * @description How the payment is matched to the invoice: in_time, after_final, late, wrong_asset; dust — below minCreditAmount of the asset, not credited to the invoice (result null, applied "0")
              * @example in_time
              * @enum {string|null}
              */
@@ -2797,7 +2797,7 @@ export interface operations {
             query?: never;
             header?: {
                 /**
-                 * @description Свой id запроса мерчанта: печатные ASCII без пробелов, до 128 символов. Не подписывается, возвращается эхом
+                 * @description Own request id of the merchant: printable ASCII without spaces, up to 128 characters. Not signed, echoed back
                  * @example shop-req-10530-1
                  */
                 "X-Client-Request-Id"?: string;
@@ -2944,7 +2944,7 @@ export interface operations {
             };
             header?: {
                 /**
-                 * @description Свой id запроса мерчанта: печатные ASCII без пробелов, до 128 символов. Не подписывается, возвращается эхом
+                 * @description Own request id of the merchant: printable ASCII without spaces, up to 128 characters. Not signed, echoed back
                  * @example shop-req-10530-1
                  */
                 "X-Client-Request-Id"?: string;
@@ -3090,7 +3090,7 @@ export interface operations {
             query?: never;
             header?: {
                 /**
-                 * @description Свой id запроса мерчанта: печатные ASCII без пробелов, до 128 символов. Не подписывается, возвращается эхом
+                 * @description Own request id of the merchant: printable ASCII without spaces, up to 128 characters. Not signed, echoed back
                  * @example shop-req-10530-1
                  */
                 "X-Client-Request-Id"?: string;
@@ -3302,7 +3302,7 @@ export interface operations {
             query?: never;
             header?: {
                 /**
-                 * @description Свой id запроса мерчанта: печатные ASCII без пробелов, до 128 символов. Не подписывается, возвращается эхом
+                 * @description Own request id of the merchant: printable ASCII without spaces, up to 128 characters. Not signed, echoed back
                  * @example shop-req-10530-1
                  */
                 "X-Client-Request-Id"?: string;
@@ -3513,7 +3513,7 @@ export interface operations {
             };
             header?: {
                 /**
-                 * @description Свой id запроса мерчанта: печатные ASCII без пробелов, до 128 символов. Не подписывается, возвращается эхом
+                 * @description Own request id of the merchant: printable ASCII without spaces, up to 128 characters. Not signed, echoed back
                  * @example shop-req-10530-1
                  */
                 "X-Client-Request-Id"?: string;
@@ -3684,7 +3684,7 @@ export interface operations {
             query?: never;
             header?: {
                 /**
-                 * @description Свой id запроса мерчанта: печатные ASCII без пробелов, до 128 символов. Не подписывается, возвращается эхом
+                 * @description Own request id of the merchant: printable ASCII without spaces, up to 128 characters. Not signed, echoed back
                  * @example shop-req-10530-1
                  */
                 "X-Client-Request-Id"?: string;
@@ -3855,7 +3855,7 @@ export interface operations {
             };
             header?: {
                 /**
-                 * @description Свой id запроса мерчанта: печатные ASCII без пробелов, до 128 символов. Не подписывается, возвращается эхом
+                 * @description Own request id of the merchant: printable ASCII without spaces, up to 128 characters. Not signed, echoed back
                  * @example shop-req-10530-1
                  */
                 "X-Client-Request-Id"?: string;
@@ -4061,7 +4061,7 @@ export interface operations {
             };
             header?: {
                 /**
-                 * @description Свой id запроса мерчанта: печатные ASCII без пробелов, до 128 символов. Не подписывается, возвращается эхом
+                 * @description Own request id of the merchant: printable ASCII without spaces, up to 128 characters. Not signed, echoed back
                  * @example shop-req-10530-1
                  */
                 "X-Client-Request-Id"?: string;
@@ -4295,7 +4295,7 @@ export interface operations {
             };
             header?: {
                 /**
-                 * @description Свой id запроса мерчанта: печатные ASCII без пробелов, до 128 символов. Не подписывается, возвращается эхом
+                 * @description Own request id of the merchant: printable ASCII without spaces, up to 128 characters. Not signed, echoed back
                  * @example shop-req-10530-1
                  */
                 "X-Client-Request-Id"?: string;
@@ -4452,7 +4452,7 @@ export interface operations {
             };
             header?: {
                 /**
-                 * @description Свой id запроса мерчанта: печатные ASCII без пробелов, до 128 символов. Не подписывается, возвращается эхом
+                 * @description Own request id of the merchant: printable ASCII without spaces, up to 128 characters. Not signed, echoed back
                  * @example shop-req-10530-1
                  */
                 "X-Client-Request-Id"?: string;
@@ -4578,7 +4578,7 @@ export interface operations {
             query?: never;
             header?: {
                 /**
-                 * @description Свой id запроса мерчанта: печатные ASCII без пробелов, до 128 символов. Не подписывается, возвращается эхом
+                 * @description Own request id of the merchant: printable ASCII without spaces, up to 128 characters. Not signed, echoed back
                  * @example shop-req-10530-1
                  */
                 "X-Client-Request-Id"?: string;
@@ -4796,7 +4796,7 @@ export interface operations {
             };
             header?: {
                 /**
-                 * @description Свой id запроса мерчанта: печатные ASCII без пробелов, до 128 символов. Не подписывается, возвращается эхом
+                 * @description Own request id of the merchant: printable ASCII without spaces, up to 128 characters. Not signed, echoed back
                  * @example shop-req-10530-1
                  */
                 "X-Client-Request-Id"?: string;
@@ -4985,7 +4985,7 @@ export interface operations {
             query?: never;
             header?: {
                 /**
-                 * @description Свой id запроса мерчанта: печатные ASCII без пробелов, до 128 символов. Не подписывается, возвращается эхом
+                 * @description Own request id of the merchant: printable ASCII without spaces, up to 128 characters. Not signed, echoed back
                  * @example shop-req-10530-1
                  */
                 "X-Client-Request-Id"?: string;
@@ -5131,7 +5131,7 @@ export interface operations {
             query?: never;
             header?: {
                 /**
-                 * @description Свой id запроса мерчанта: печатные ASCII без пробелов, до 128 символов. Не подписывается, возвращается эхом
+                 * @description Own request id of the merchant: printable ASCII without spaces, up to 128 characters. Not signed, echoed back
                  * @example shop-req-10530-1
                  */
                 "X-Client-Request-Id"?: string;
@@ -5365,7 +5365,7 @@ export interface operations {
             };
             header?: {
                 /**
-                 * @description Свой id запроса мерчанта: печатные ASCII без пробелов, до 128 символов. Не подписывается, возвращается эхом
+                 * @description Own request id of the merchant: printable ASCII without spaces, up to 128 characters. Not signed, echoed back
                  * @example shop-req-10530-1
                  */
                 "X-Client-Request-Id"?: string;
@@ -5607,7 +5607,7 @@ export interface operations {
             query?: never;
             header?: {
                 /**
-                 * @description Свой id запроса мерчанта: печатные ASCII без пробелов, до 128 символов. Не подписывается, возвращается эхом
+                 * @description Own request id of the merchant: printable ASCII without spaces, up to 128 characters. Not signed, echoed back
                  * @example shop-req-10530-1
                  */
                 "X-Client-Request-Id"?: string;
@@ -5878,7 +5878,7 @@ export interface operations {
             query?: never;
             header?: {
                 /**
-                 * @description Свой id запроса мерчанта: печатные ASCII без пробелов, до 128 символов. Не подписывается, возвращается эхом
+                 * @description Own request id of the merchant: printable ASCII without spaces, up to 128 characters. Not signed, echoed back
                  * @example shop-req-10530-1
                  */
                 "X-Client-Request-Id"?: string;
@@ -6057,7 +6057,7 @@ export interface operations {
             query?: never;
             header?: {
                 /**
-                 * @description Свой id запроса мерчанта: печатные ASCII без пробелов, до 128 символов. Не подписывается, возвращается эхом
+                 * @description Own request id of the merchant: printable ASCII without spaces, up to 128 characters. Not signed, echoed back
                  * @example shop-req-10530-1
                  */
                 "X-Client-Request-Id"?: string;
@@ -6248,7 +6248,7 @@ export interface operations {
             query?: never;
             header?: {
                 /**
-                 * @description Свой id запроса мерчанта: печатные ASCII без пробелов, до 128 символов. Не подписывается, возвращается эхом
+                 * @description Own request id of the merchant: printable ASCII without spaces, up to 128 characters. Not signed, echoed back
                  * @example shop-req-10530-1
                  */
                 "X-Client-Request-Id"?: string;
@@ -6332,7 +6332,7 @@ export interface operations {
                      *               "decimals": 18,
                      *               "invoicesEnabled": true,
                      *               "payoutsEnabled": true,
-                     *               "minCreditAmount": "0.00005",
+                     *               "minCreditAmount": "0.0005",
                      *               "payoutMin": "0.005",
                      *               "payoutMax": "5"
                      *             }
@@ -6423,7 +6423,7 @@ export interface operations {
             query?: never;
             header?: {
                 /**
-                 * @description Свой id запроса мерчанта: печатные ASCII без пробелов, до 128 символов. Не подписывается, возвращается эхом
+                 * @description Own request id of the merchant: printable ASCII without spaces, up to 128 characters. Not signed, echoed back
                  * @example shop-req-10530-1
                  */
                 "X-Client-Request-Id"?: string;
@@ -6603,7 +6603,7 @@ export interface operations {
             query?: never;
             header?: {
                 /**
-                 * @description Свой id запроса мерчанта: печатные ASCII без пробелов, до 128 символов. Не подписывается, возвращается эхом
+                 * @description Own request id of the merchant: printable ASCII without spaces, up to 128 characters. Not signed, echoed back
                  * @example shop-req-10530-1
                  */
                 "X-Client-Request-Id"?: string;
@@ -6726,7 +6726,7 @@ export interface operations {
             query?: never;
             header?: {
                 /**
-                 * @description Свой id запроса мерчанта: печатные ASCII без пробелов, до 128 символов. Не подписывается, возвращается эхом
+                 * @description Own request id of the merchant: printable ASCII without spaces, up to 128 characters. Not signed, echoed back
                  * @example shop-req-10530-1
                  */
                 "X-Client-Request-Id"?: string;
@@ -6889,7 +6889,7 @@ export interface operations {
             query?: never;
             header?: {
                 /**
-                 * @description Свой id запроса мерчанта: печатные ASCII без пробелов, до 128 символов. Не подписывается, возвращается эхом
+                 * @description Own request id of the merchant: printable ASCII without spaces, up to 128 characters. Not signed, echoed back
                  * @example shop-req-10530-1
                  */
                 "X-Client-Request-Id"?: string;
@@ -7043,7 +7043,7 @@ export interface operations {
             query?: never;
             header?: {
                 /**
-                 * @description Свой id запроса мерчанта: печатные ASCII без пробелов, до 128 символов. Не подписывается, возвращается эхом
+                 * @description Own request id of the merchant: printable ASCII without spaces, up to 128 characters. Not signed, echoed back
                  * @example shop-req-10530-1
                  */
                 "X-Client-Request-Id"?: string;
@@ -7262,7 +7262,7 @@ export interface operations {
             };
             header?: {
                 /**
-                 * @description Свой id запроса мерчанта: печатные ASCII без пробелов, до 128 символов. Не подписывается, возвращается эхом
+                 * @description Own request id of the merchant: printable ASCII without spaces, up to 128 characters. Not signed, echoed back
                  * @example shop-req-10530-1
                  */
                 "X-Client-Request-Id"?: string;
@@ -7440,7 +7440,7 @@ export interface operations {
             query?: never;
             header?: {
                 /**
-                 * @description Свой id запроса мерчанта: печатные ASCII без пробелов, до 128 символов. Не подписывается, возвращается эхом
+                 * @description Own request id of the merchant: printable ASCII without spaces, up to 128 characters. Not signed, echoed back
                  * @example shop-req-10530-1
                  */
                 "X-Client-Request-Id"?: string;
@@ -7650,7 +7650,7 @@ export interface operations {
             query?: never;
             header?: {
                 /**
-                 * @description Свой id запроса мерчанта: печатные ASCII без пробелов, до 128 символов. Не подписывается, возвращается эхом
+                 * @description Own request id of the merchant: printable ASCII without spaces, up to 128 characters. Not signed, echoed back
                  * @example shop-req-10530-1
                  */
                 "X-Client-Request-Id"?: string;

@@ -2,7 +2,7 @@
 
 React component for the PSP payment widget. It shows the platform's payment page in an `<iframe>` on your site and tells your interface what happens there: the invoice loaded, the status changed, the invoice is paid or expired.
 
-- Your server builds the link with [`@qubiq-psp/sdk`](https://github.com/qubiq-psp/node-sdk#payment-widget). This package only renders it and reports events.
+- Your server builds the link with [`@qubiq-psp/sdk`](https://github.com/qubiq-psp/sdk/tree/main/packages/node#payment-widget). This package only renders it and reports events.
 - Only links of the platform payment page are shown, and messages are accepted only from that origin and from this exact iframe. Every field is type-checked.
 - The iframe height follows the page content, so the frame needs no scroll bar of its own.
 - Works with React 18 and 19 and with server rendering (Next.js and other React frameworks).
@@ -56,7 +56,7 @@ Requires React 18 or newer (`react` is a peer dependency). The code targets ES20
 
 ## Quick start
 
-**Server.** Build the link each time you render the order page: it is free, and the default lifetime is 24 hours. See [Payment widget](https://github.com/qubiq-psp/node-sdk#payment-widget) in the `@qubiq-psp/sdk` README for branding, locale and lifetime options.
+**Server.** Build the link each time you render the order page: it is free, and the default lifetime is 24 hours. See [Payment widget](https://github.com/qubiq-psp/sdk/tree/main/packages/node#payment-widget) in the `@qubiq-psp/sdk` README for branding, locale and lifetime options.
 
 ```ts
 import { PspClient } from '@qubiq-psp/sdk';

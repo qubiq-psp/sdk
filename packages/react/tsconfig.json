@@ -24,6 +24,6 @@
     "noEmit": true
   },
   "include": ["src", "test", "*.config.ts"],
-  // Checked by yarn smoke against the installed tarball, not against the sources
+  // Checked by pnpm smoke against the installed tarball, not against the sources
   "exclude": ["test/smoke"]
 }

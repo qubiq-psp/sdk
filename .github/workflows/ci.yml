@@ -1,0 +1,56 @@
+# Checks of the packages (and later the examples) on GitHub-hosted runners. This public repository has no deploy and
+# no secrets: the examples are deployed from the private qubiq-psp/psp.
+name: ci
+
+on:
+  push:
+    branches: [dev, main]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  check:
+    name: lockfile, lint, types, tests, package
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7
+        with:
+          node-version: 22
+          package-manager-cache: false
+      - run: corepack enable
+      - run: pnpm install --frozen-lockfile
+      # lockfile:check, then the `ci` script of every package: api:check (here against the copy of the API only),
+      # types, lint, format, tests, build, publint + attw, smoke
+      - run: pnpm run ci
+
+  node:
+    name: ${{ matrix.package }} on Node.js ${{ matrix.node }}
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        package: [node, react]
+        node: [18, 20, 22, 24]
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+      # pnpm and the dev tools install on Node.js 22; the tests and the smoke then run on the matrix version
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7
+        with:
+          node-version: 22
+          package-manager-cache: false
+      - run: corepack enable
+      - run: pnpm install --frozen-lockfile
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7
+        with:
+          node-version: ${{ matrix.node }}
+          package-manager-cache: false
+      # vitest 4 of the react package needs Node.js 20+; the package itself runs on Node.js 18+ in server renders,
+      # which the smoke checks on every version
+      - run: npm run test
+        if: matrix.package == 'node' || matrix.node != 18
+        working-directory: packages/${{ matrix.package }}
+      - run: npm run smoke
+        working-directory: packages/${{ matrix.package }}

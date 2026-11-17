@@ -3,5 +3,4 @@ coverage/
 node_modules/
 api/openapi.v1.json
 src/generated/
-yarn.lock
 test/vectors/

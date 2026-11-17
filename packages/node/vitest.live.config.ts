@@ -1,7 +1,7 @@
 import { existsSync, readFileSync } from 'node:fs';
 import { defineConfig } from 'vitest/config';
 
-// yarn test:live — the live check against a testnet platform (test/live), separate from the unit tests.
+// pnpm test:live — the live check against a testnet platform (test/live), separate from the unit tests.
 // The credentials come from the environment or from the git-ignored file .env.live (KEY=value lines).
 if (existsSync('.env.live')) {
   for (const line of readFileSync('.env.live', 'utf8').split('\n')) {
