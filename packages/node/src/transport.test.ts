@@ -256,6 +256,42 @@ describe('retries (gateway 13.10)', () => {
     expect(gw.requests).toHaveLength(2);
   });
 
+  it('createPayout is repeated like createInvoice: the same body after 503 with an unknown outcome', async () => {
+    const body = { externalId: 'w-2290', network: 'tron', asset: 'USDT', amount: '1000', toAddress: 'T1' };
+    gw.queue.push(apiError(503, 'service_unavailable', { outcome: 'unknown' }), { status: 200, json: { id: 'p1' } });
+    const payout = await transport().call<object>('createPayout', { body });
+    expect(gw.requests.map((r) => r.body)).toEqual([JSON.stringify(body), JSON.stringify(body)]);
+    expect(gw.requests.every((r) => r.signatureValid && !r.nonceReused)).toBe(true);
+    expect(getResponseMeta(payout)).toMatchObject({ status: 200, attempts: 2 });
+  });
+
+  it('createPayout: 503 rate_unavailable and operations_paused are thrown, not repeated', async () => {
+    for (const reply of [
+      apiError(503, 'rate_unavailable', { reason: 'unavailable', currency: 'TRX' }),
+      apiError(503, 'operations_paused', { flag: 'payouts', reason: null }),
+    ]) {
+      gw.requests.length = 0;
+      gw.queue.push(reply);
+      await expect(transport().call('createPayout', { body: { externalId: 'w-1' } })).rejects.toBeInstanceOf(
+        PspApiError,
+      );
+      expect(gw.requests).toHaveLength(1);
+    }
+  });
+
+  it('quotePayout is repeated only when it surely did not run', async () => {
+    gw.queue.push(apiError(503, 'service_unavailable', { outcome: 'unknown' }));
+    await expect(transport().call('quotePayout', { body: {} })).rejects.toMatchObject({
+      errorCode: 'service_unavailable',
+    });
+    expect(gw.requests).toHaveLength(1);
+
+    gw.requests.length = 0;
+    gw.queue.push(apiError(503, 'service_unavailable'));
+    await transport().call('quotePayout', { body: {} });
+    expect(gw.requests).toHaveLength(2);
+  });
+
   it('redeliverDelivery is repeated at most once', async () => {
     gw.fallback = () => apiError(503, 'service_unavailable', { outcome: 'unknown' });
     await expect(transport().call('redeliverDelivery', { path: { deliveryId: 'd' } })).rejects.toBeInstanceOf(
@@ -300,6 +336,32 @@ describe('connections', () => {
     expect(err).toBeInstanceOf(PspTimeoutError);
     expect((err as PspTimeoutError).outcome).toBe('unknown');
     expect(gw.requests).toHaveLength(2);
+  });
+
+  it('createPayout waits at least 180 s even when the client timeout is shorter', async () => {
+    gw.fallback = () => ({ status: 201, json: { id: 'p1' }, delayMs: 200 });
+    const t = transport({ timeoutMs: 50, maxRetries: 0 });
+    await expect(t.call('getAccount')).rejects.toBeInstanceOf(PspTimeoutError);
+    const payout = await t.call<object>('createPayout', { body: { externalId: 'w-1' } });
+    expect(getResponseMeta(payout)?.status).toBe(201);
+  });
+
+  it('createPayout keeps an explicit per-call timeout; after it the same body is repeated', async () => {
+    gw.queue.push({ status: 201, json: { id: 'p1' }, delayMs: 300 }, { status: 200, json: { id: 'p1' } });
+    const payout = await transport().call<object>('createPayout', {
+      body: { externalId: 'w-1' },
+      options: { timeoutMs: 50 },
+    });
+    expect(getResponseMeta(payout)).toMatchObject({ status: 200, attempts: 2 });
+    expect(gw.requests.map((r) => r.body)).toEqual(['{"externalId":"w-1"}', '{"externalId":"w-1"}']);
+  });
+
+  it('quotePayout is not repeated after a timeout: the quote may exist', async () => {
+    gw.fallback = () => ({ status: 201, json: { quoteId: 'q' }, delayMs: 300 });
+    await expect(transport({ timeoutMs: 50 }).call('quotePayout', { body: {} })).rejects.toBeInstanceOf(
+      PspTimeoutError,
+    );
+    expect(gw.requests).toHaveLength(1);
   });
 
   it('connection refused: not_sent; even sendTestWebhook is repeated', async () => {
