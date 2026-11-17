@@ -1,0 +1,31 @@
+{
+  // Typecheck of the sources and the tests. The build (tsconfig.build.json) emits CommonJS to dist/.
+  // @qubiq-psp/sdk is taken from its build (packages/node/dist): build it first, see README «Workspace».
+  "compilerOptions": {
+    "target": "ES2023",
+    "lib": ["ES2023"],
+    "module": "NodeNext",
+    "moduleResolution": "NodeNext",
+    "types": ["node"],
+    "strict": true,
+    "noUncheckedIndexedAccess": true,
+    "noFallthroughCasesInSwitch": true,
+    "noImplicitOverride": true,
+    "noImplicitReturns": true,
+    "noPropertyAccessFromIndexSignature": true,
+    "noUnusedLocals": true,
+    "noUnusedParameters": true,
+    "forceConsistentCasingInFileNames": true,
+    // NestJS decorators. Every injection names its token with @Inject(), so the code does not depend on
+    // emitDecoratorMetadata (which esbuild of the tests and tsx of `dev` do not emit).
+    "experimentalDecorators": true,
+    "emitDecoratorMetadata": true,
+    "esModuleInterop": true,
+    "resolveJsonModule": true,
+    "isolatedModules": true,
+    "skipLibCheck": true,
+    "sourceMap": true,
+    "noEmit": true
+  },
+  "include": ["src", "test", "*.config.mts"]
+}

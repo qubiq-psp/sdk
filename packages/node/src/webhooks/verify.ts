@@ -83,10 +83,23 @@ function toBuffer(body: WebhookBody): Buffer {
   );
 }
 
-/** `v1=<hex>` signature of a webhook body; use it to sign fake webhooks in the tests of your handler. */
+/** `X-Webhook-Timestamp`: Unix seconds, digits only. */
+const TIMESTAMP_RE = /^[0-9]{1,12}$/;
+
+/**
+ * `v1=<hex>` signature of a webhook body; use it to sign fake webhooks in the tests of your handler.
+ *
+ * `timestamp` must be Unix seconds: 1–12 digits (or a non-negative integer), as `X-Webhook-Timestamp` is. Anything
+ * else is a `TypeError`, before the secret is used: the same secret keys other HMACs (such as the payment-widget
+ * token), so a helper that signs any string under it must not be reachable with a value from a request.
+ */
 export function signWebhook(secret: string, timestamp: string | number, body: WebhookBody): string {
+  const text = typeof timestamp === 'number' && Number.isSafeInteger(timestamp) ? String(timestamp) : timestamp;
+  if (typeof text !== 'string' || !TIMESTAMP_RE.test(text)) {
+    throw new TypeError('timestamp must be Unix seconds: 1–12 digits');
+  }
   const mac = createHmac('sha256', Buffer.from(secret, 'utf8'));
-  mac.update(`${String(timestamp)}.`, 'utf8');
+  mac.update(`${text}.`, 'utf8');
   mac.update(toBuffer(body));
   return `v1=${mac.digest('hex')}`;
 }
@@ -119,7 +132,6 @@ export interface WebhookSignatureResult {
   attempt: number | null;
 }
 
-const TIMESTAMP_RE = /^[0-9]{1,12}$/;
 const SIGNATURE_RE = /^v1=([0-9a-f]{64})$/;
 
 function nowSeconds(now: number | Date | undefined): number {

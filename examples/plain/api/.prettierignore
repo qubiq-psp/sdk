@@ -1,0 +1,3 @@
+dist/
+# Webhook bodies of the test vectors, byte for byte
+test/vectors/

@@ -1,0 +1,4 @@
+# The recommended rules. The contract is linted on its own; merchant-api.v1.json is generated from the gateway copy
+# and is only checked as far as the contract references it.
+extends:
+  - recommended

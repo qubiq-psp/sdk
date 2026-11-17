@@ -1,0 +1,2 @@
+# The builds (pnpm build); the root .gitignore keeps them out of git, but prettier reads only this folder's ignore files
+dist/
