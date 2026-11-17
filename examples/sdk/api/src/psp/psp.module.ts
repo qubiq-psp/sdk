@@ -23,8 +23,11 @@ import { APP_VERSION } from '../version';
           previousApiSecret: config.psp.previousApiSecret,
           checkoutUrl: config.psp.checkoutUrl,
           userAgent: `psp-examples-sdk-api/${APP_VERSION}`,
-          // timeoutMs, maxRetries, retryBaseDelayMs, maxRetryAfterSeconds: the SDK defaults (gateway docs 13.10) —
-          // 180 s per attempt, up to 4 retries after 1, 2, 4, 8 s, Retry-After up to 30 s. Only tests shorten the pauses.
+          // Timeout of one attempt: 180 s by default, as the SDK's own default (the platform answers sooner, gateway
+          // docs 13.10). The SDK raises a lower value to 180 s for payouts.create.
+          timeoutMs: config.upstreamTimeoutMs,
+          // maxRetries, retryBaseDelayMs, maxRetryAfterSeconds: the SDK defaults — up to 4 retries after 1, 2, 4, 8 s,
+          // Retry-After up to 30 s. Only tests shorten the pauses.
           ...(runtime.retryBaseDelayMs === undefined ? {} : { retryBaseDelayMs: runtime.retryBaseDelayMs }),
 
           // Example plumbing: a fetch that records every attempt in the request log. A merchant passes nothing here.

@@ -33,6 +33,8 @@ export interface AppConfig {
   readonly uiDir: string | null;
   /** `APP_LOG_LIMIT` — how many request-log entries and received webhooks are kept in memory. */
   readonly logLimit: number;
+  /** `APP_UPSTREAM_TIMEOUT_MS` — timeout of one attempt to the platform (`timeoutMs` of the SDK), default 180 000. */
+  readonly upstreamTimeoutMs: number;
   readonly logLevel: AppLogLevel;
 }
 
@@ -127,8 +129,7 @@ export function loadConfig(env: Env): AppConfig {
     'psp_sk_test_ + 36 letters and digits (or be empty)',
   );
   const checkoutUrl = url('PSP_CHECKOUT_URL', required('PSP_CHECKOUT_URL'), 'https://pay.psp.qubiq.cc');
-  // The contract README calls it PUBLIC_URL; APP_PUBLIC_URL is the name of this backend, PUBLIC_URL is accepted too
-  const publicUrl = url('APP_PUBLIC_URL', value('APP_PUBLIC_URL') ?? value('PUBLIC_URL'), 'https://sdk.example.com');
+  const publicUrl = url('APP_PUBLIC_URL', value('APP_PUBLIC_URL'), 'https://sdk-example.psp.qubiq.cc');
 
   const live = (credential: string | undefined): boolean => credential !== undefined && LIVE_RE.test(credential);
   if (apiKey !== undefined && apiSecret !== undefined && live(apiKey) !== live(apiSecret)) {
@@ -153,6 +154,8 @@ export function loadConfig(env: Env): AppConfig {
   const host = value('HOST') ?? '127.0.0.1';
   const port = integer('PORT', 4900, 1, 65535);
   const logLimit = integer('APP_LOG_LIMIT', 1000, 1, 100_000);
+  // The longest timer Node.js takes
+  const upstreamTimeoutMs = integer('APP_UPSTREAM_TIMEOUT_MS', 180_000, 1, 2_147_483_647);
 
   const logLevelRaw = value('LOG_LEVEL') ?? 'log';
   const logLevel = (LOG_LEVELS as readonly string[]).includes(logLevelRaw) ? (logLevelRaw as AppLogLevel) : 'log';
@@ -196,6 +199,7 @@ export function loadConfig(env: Env): AppConfig {
     port,
     uiDir,
     logLimit,
+    upstreamTimeoutMs,
     logLevel,
   };
 }

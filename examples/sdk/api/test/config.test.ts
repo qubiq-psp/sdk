@@ -39,6 +39,7 @@ describe('loadConfig', () => {
       port: 4900,
       uiDir: null,
       logLimit: 1000,
+      upstreamTimeoutMs: 180000,
       logLevel: 'log',
     });
     expect(config.psp.apiSecret).toBe(API_SECRET);
@@ -53,19 +54,20 @@ describe('loadConfig', () => {
         HOST: '0.0.0.0',
         PORT: '5000',
         APP_LOG_LIMIT: '20',
+        APP_UPSTREAM_TIMEOUT_MS: '1500',
         LOG_LEVEL: 'debug',
       }),
     );
     expect(config.psp.previousApiSecret).toBe(PREVIOUS_SECRET);
     expect(config.webhookUrl).toBe('https://sdk-example.psp.qubiq.cc/webhooks/psp');
-    expect(config).toMatchObject({ host: '0.0.0.0', port: 5000, logLimit: 20, logLevel: 'debug' });
+    expect(config).toMatchObject({
+      host: '0.0.0.0',
+      port: 5000,
+      logLimit: 20,
+      upstreamTimeoutMs: 1500,
+      logLevel: 'debug',
+    });
     expect(nestLogLevels('debug')).toEqual(['fatal', 'error', 'warn', 'log', 'debug']);
-  });
-
-  it('accepts PUBLIC_URL, the name of the contract README', () => {
-    const env = testEnv('https://api.psp.qubiq.cc', { PUBLIC_URL: 'https://x.test' });
-    delete env['APP_PUBLIC_URL'];
-    expect(loadConfig(env).webhookUrl).toBe('https://x.test/webhooks/psp');
   });
 
   it('lists every missing variable', () => {
@@ -86,6 +88,7 @@ describe('loadConfig', () => {
       APP_TESTNET_ONLY: 'yes',
       PORT: '70000',
       APP_LOG_LIMIT: '0',
+      APP_UPSTREAM_TIMEOUT_MS: '0',
       LOG_LEVEL: 'loud',
     });
     expect(message).toContain('PSP_API_URL must be https://');
@@ -97,6 +100,7 @@ describe('loadConfig', () => {
     expect(message).toContain('APP_TESTNET_ONLY must be true or false');
     expect(message).toContain('PORT must be an integer from 1 to 65535');
     expect(message).toContain('APP_LOG_LIMIT must be an integer from 1 to 100000');
+    expect(message).toContain('APP_UPSTREAM_TIMEOUT_MS must be an integer');
     expect(message).toContain('LOG_LEVEL must be one of');
     // A key pasted into the secret variable is not echoed
     expect(message).not.toContain(API_KEY);
