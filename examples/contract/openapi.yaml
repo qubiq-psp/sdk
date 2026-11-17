@@ -1,0 +1,1690 @@
+openapi: 3.1.0
+info:
+  title: PSP examples contract
+  version: 0.1.0
+  summary: The HTTP contract between the example UI and the two example backends (plain and sdk).
+  description: |
+    One shared UI (`examples/ui`) talks to either backend (`examples/plain/api` or `examples/sdk/api`) through this
+    contract only. A deployment serves one merchant: the API URL, key and secret come from the backend's environment.
+
+    - **Passthrough routes** (tag per area, `x-merchant-api` set) map one to one onto the 27 operations of the Merchant
+      API (`/api/v1/<path>` → `/api/<path>`). Parameters, bodies and response schemas are `$ref`s into
+      `merchant-api.v1.json` — the OpenAPI 3.1 rendition of the vendored Merchant API copy
+      `packages/node/api/openapi.v1.json`. The backend forwards what it receives and returns the platform's status,
+      body and the headers listed on each response unchanged — errors included.
+    - **Example routes** (`x-example-extra: true`) exist only in the examples: config, the payment-widget link, the
+      request log, the received-webhooks log, the receiver behaviour and the SSE stream.
+    - **Receiver** `POST /webhooks/psp` is called by the platform, not by the UI.
+
+    The rules both backends must follow are in `examples/contract/README.md`.
+  license:
+    name: MIT
+    identifier: MIT
+servers:
+  - url: /
+    description: Same origin as the UI; nginx routes `/api/*` and `/webhooks/*` to the backend.
+security: []
+tags:
+  - name: Example
+    description: Which backend this is and what it is connected to.
+  - name: Account
+    description: Merchant API — the merchant, status, capabilities, the key of the request.
+  - name: Invoices
+    description: Merchant API — invoices. The widget link is in the tag Payment widget.
+  - name: Payment widget
+    description: A signed link to the payment page, built by the backend offline with the API secret.
+  - name: Balances and operations
+    description: Merchant API — balances, operations, summary, statement.
+  - name: Deposits
+    description: Merchant API — deposits.
+  - name: Payouts
+    description: Merchant API — quotes and payout requests.
+  - name: Networks and tariff
+    description: Merchant API — networks, assets and the tariff.
+  - name: Webhook settings
+    description: Merchant API — webhook URL, test, delivery log, redelivery.
+  - name: Webhook receiver
+    description: The backend's own receiver of platform webhooks, its log and its behaviour.
+  - name: Request log
+    description: Every request the backend sent to the platform, and the SSE stream of new entries.
+paths:
+  /api/account:
+    get:
+      operationId: getAccount
+      x-merchant-api: getAccount
+      tags: ["Account"]
+      summary: "The merchant, its status, capabilities and the key of the request"
+      description: Passthrough of `GET /api/v1/account`.
+      parameters:
+        - $ref: 'merchant-api.v1.json#/components/parameters/getAccount.X-Client-Request-Id'
+      responses:
+        '200':
+          description: "Platform response 200, body and status unchanged"
+          headers:
+            X-Example-Call-Id:
+              $ref: '#/components/headers/X-Example-Call-Id'
+            X-Request-Id:
+              $ref: '#/components/headers/X-Request-Id'
+            X-Client-Request-Id:
+              $ref: '#/components/headers/X-Client-Request-Id'
+            X-Api-Key-Deprecated:
+              $ref: '#/components/headers/X-Api-Key-Deprecated'
+          content:
+            application/json:
+              schema:
+                $ref: 'merchant-api.v1.json#/components/schemas/AccountResponse'
+        '4XX':
+          $ref: '#/components/responses/PassthroughError'
+        '5XX':
+          $ref: '#/components/responses/PassthroughError'
+  /api/invoices:
+    post:
+      operationId: createInvoice
+      x-merchant-api: createInvoice
+      tags: ["Invoices"]
+      summary: "Create an invoice (201 new, 200 the same externalId and fields)"
+      description: Passthrough of `POST /api/v1/invoices`.
+      parameters:
+        - $ref: 'merchant-api.v1.json#/components/parameters/createInvoice.X-Client-Request-Id'
+      requestBody:
+        $ref: 'merchant-api.v1.json#/components/requestBodies/createInvoice'
+      responses:
+        '200':
+          description: "Platform response 200, body and status unchanged"
+          headers:
+            X-Example-Call-Id:
+              $ref: '#/components/headers/X-Example-Call-Id'
+            X-Request-Id:
+              $ref: '#/components/headers/X-Request-Id'
+            X-Client-Request-Id:
+              $ref: '#/components/headers/X-Client-Request-Id'
+            X-Api-Key-Deprecated:
+              $ref: '#/components/headers/X-Api-Key-Deprecated'
+          content:
+            application/json:
+              schema:
+                $ref: 'merchant-api.v1.json#/components/schemas/V1Invoice'
+        '201':
+          description: "Platform response 201, body and status unchanged"
+          headers:
+            X-Example-Call-Id:
+              $ref: '#/components/headers/X-Example-Call-Id'
+            X-Request-Id:
+              $ref: '#/components/headers/X-Request-Id'
+            X-Client-Request-Id:
+              $ref: '#/components/headers/X-Client-Request-Id'
+            X-Api-Key-Deprecated:
+              $ref: '#/components/headers/X-Api-Key-Deprecated'
+          content:
+            application/json:
+              schema:
+                $ref: 'merchant-api.v1.json#/components/schemas/V1Invoice'
+        '4XX':
+          $ref: '#/components/responses/PassthroughError'
+        '5XX':
+          $ref: '#/components/responses/PassthroughError'
+    get:
+      operationId: listInvoices
+      x-merchant-api: listInvoices
+      tags: ["Invoices"]
+      summary: "Invoices, newest first, with filters and pages"
+      description: Passthrough of `GET /api/v1/invoices`.
+      parameters:
+        - $ref: 'merchant-api.v1.json#/components/parameters/listInvoices.page'
+        - $ref: 'merchant-api.v1.json#/components/parameters/listInvoices.limit'
+        - $ref: 'merchant-api.v1.json#/components/parameters/listInvoices.from'
+        - $ref: 'merchant-api.v1.json#/components/parameters/listInvoices.to'
+        - $ref: 'merchant-api.v1.json#/components/parameters/listInvoices.externalId'
+        - $ref: 'merchant-api.v1.json#/components/parameters/listInvoices.status'
+        - $ref: 'merchant-api.v1.json#/components/parameters/listInvoices.network'
+        - $ref: 'merchant-api.v1.json#/components/parameters/listInvoices.asset'
+        - $ref: 'merchant-api.v1.json#/components/parameters/listInvoices.X-Client-Request-Id'
+      responses:
+        '200':
+          description: "Platform response 200, body and status unchanged"
+          headers:
+            X-Example-Call-Id:
+              $ref: '#/components/headers/X-Example-Call-Id'
+            X-Request-Id:
+              $ref: '#/components/headers/X-Request-Id'
+            X-Client-Request-Id:
+              $ref: '#/components/headers/X-Client-Request-Id'
+            X-Api-Key-Deprecated:
+              $ref: '#/components/headers/X-Api-Key-Deprecated'
+          content:
+            application/json:
+              schema:
+                $ref: 'merchant-api.v1.json#/components/schemas/listInvoicesResponse'
+        '4XX':
+          $ref: '#/components/responses/PassthroughError'
+        '5XX':
+          $ref: '#/components/responses/PassthroughError'
+  /api/invoices/{invoiceId}:
+    get:
+      operationId: getInvoice
+      x-merchant-api: getInvoice
+      tags: ["Invoices"]
+      summary: "An invoice with its payments"
+      description: Passthrough of `GET /api/v1/invoices/{invoiceId}`.
+      parameters:
+        - $ref: 'merchant-api.v1.json#/components/parameters/getInvoice.invoiceId'
+        - $ref: 'merchant-api.v1.json#/components/parameters/getInvoice.X-Client-Request-Id'
+      responses:
+        '200':
+          description: "Platform response 200, body and status unchanged"
+          headers:
+            X-Example-Call-Id:
+              $ref: '#/components/headers/X-Example-Call-Id'
+            X-Request-Id:
+              $ref: '#/components/headers/X-Request-Id'
+            X-Client-Request-Id:
+              $ref: '#/components/headers/X-Client-Request-Id'
+            X-Api-Key-Deprecated:
+              $ref: '#/components/headers/X-Api-Key-Deprecated'
+          content:
+            application/json:
+              schema:
+                $ref: 'merchant-api.v1.json#/components/schemas/V1InvoiceWithPayments'
+        '4XX':
+          $ref: '#/components/responses/PassthroughError'
+        '5XX':
+          $ref: '#/components/responses/PassthroughError'
+  /api/invoices/{invoiceId}/events:
+    get:
+      operationId: listInvoiceEvents
+      x-merchant-api: listInvoiceEvents
+      tags: ["Invoices"]
+      summary: "The history of an invoice, oldest first"
+      description: Passthrough of `GET /api/v1/invoices/{invoiceId}/events`.
+      parameters:
+        - $ref: 'merchant-api.v1.json#/components/parameters/listInvoiceEvents.invoiceId'
+        - $ref: 'merchant-api.v1.json#/components/parameters/listInvoiceEvents.page'
+        - $ref: 'merchant-api.v1.json#/components/parameters/listInvoiceEvents.limit'
+        - $ref: 'merchant-api.v1.json#/components/parameters/listInvoiceEvents.X-Client-Request-Id'
+      responses:
+        '200':
+          description: "Platform response 200, body and status unchanged"
+          headers:
+            X-Example-Call-Id:
+              $ref: '#/components/headers/X-Example-Call-Id'
+            X-Request-Id:
+              $ref: '#/components/headers/X-Request-Id'
+            X-Client-Request-Id:
+              $ref: '#/components/headers/X-Client-Request-Id'
+            X-Api-Key-Deprecated:
+              $ref: '#/components/headers/X-Api-Key-Deprecated'
+          content:
+            application/json:
+              schema:
+                $ref: 'merchant-api.v1.json#/components/schemas/listInvoiceEventsResponse'
+        '4XX':
+          $ref: '#/components/responses/PassthroughError'
+        '5XX':
+          $ref: '#/components/responses/PassthroughError'
+  /api/invoices/{invoiceId}/cancel:
+    post:
+      operationId: cancelInvoice
+      x-merchant-api: cancelInvoice
+      tags: ["Invoices"]
+      summary: "Cancel an invoice without incoming payments"
+      description: Passthrough of `POST /api/v1/invoices/{invoiceId}/cancel`.
+      parameters:
+        - $ref: 'merchant-api.v1.json#/components/parameters/cancelInvoice.invoiceId'
+        - $ref: 'merchant-api.v1.json#/components/parameters/cancelInvoice.X-Client-Request-Id'
+      requestBody:
+        $ref: 'merchant-api.v1.json#/components/requestBodies/cancelInvoice'
+      responses:
+        '200':
+          description: "Platform response 200, body and status unchanged"
+          headers:
+            X-Example-Call-Id:
+              $ref: '#/components/headers/X-Example-Call-Id'
+            X-Request-Id:
+              $ref: '#/components/headers/X-Request-Id'
+            X-Client-Request-Id:
+              $ref: '#/components/headers/X-Client-Request-Id'
+            X-Api-Key-Deprecated:
+              $ref: '#/components/headers/X-Api-Key-Deprecated'
+          content:
+            application/json:
+              schema:
+                $ref: 'merchant-api.v1.json#/components/schemas/V1Invoice'
+        '4XX':
+          $ref: '#/components/responses/PassthroughError'
+        '5XX':
+          $ref: '#/components/responses/PassthroughError'
+  /api/balances:
+    get:
+      operationId: getMerchantBalances
+      x-merchant-api: getMerchantBalances
+      tags: ["Balances and operations"]
+      summary: "Balances per network and asset and per currency"
+      description: Passthrough of `GET /api/v1/balances`.
+      parameters:
+        - $ref: 'merchant-api.v1.json#/components/parameters/getMerchantBalances.network'
+        - $ref: 'merchant-api.v1.json#/components/parameters/getMerchantBalances.asset'
+        - $ref: 'merchant-api.v1.json#/components/parameters/getMerchantBalances.X-Client-Request-Id'
+      responses:
+        '200':
+          description: "Platform response 200, body and status unchanged"
+          headers:
+            X-Example-Call-Id:
+              $ref: '#/components/headers/X-Example-Call-Id'
+            X-Request-Id:
+              $ref: '#/components/headers/X-Request-Id'
+            X-Client-Request-Id:
+              $ref: '#/components/headers/X-Client-Request-Id'
+            X-Api-Key-Deprecated:
+              $ref: '#/components/headers/X-Api-Key-Deprecated'
+          content:
+            application/json:
+              schema:
+                $ref: 'merchant-api.v1.json#/components/schemas/V1MerchantBalances'
+        '4XX':
+          $ref: '#/components/responses/PassthroughError'
+        '5XX':
+          $ref: '#/components/responses/PassthroughError'
+  /api/operations:
+    get:
+      operationId: listMerchantOperations
+      x-merchant-api: listMerchantOperations
+      tags: ["Balances and operations"]
+      summary: "Operations, with filters and pages"
+      description: Passthrough of `GET /api/v1/operations`.
+      parameters:
+        - $ref: 'merchant-api.v1.json#/components/parameters/listMerchantOperations.page'
+        - $ref: 'merchant-api.v1.json#/components/parameters/listMerchantOperations.limit'
+        - $ref: 'merchant-api.v1.json#/components/parameters/listMerchantOperations.from'
+        - $ref: 'merchant-api.v1.json#/components/parameters/listMerchantOperations.to'
+        - $ref: 'merchant-api.v1.json#/components/parameters/listMerchantOperations.network'
+        - $ref: 'merchant-api.v1.json#/components/parameters/listMerchantOperations.asset'
+        - $ref: 'merchant-api.v1.json#/components/parameters/listMerchantOperations.type'
+        - $ref: 'merchant-api.v1.json#/components/parameters/listMerchantOperations.invoiceId'
+        - $ref: 'merchant-api.v1.json#/components/parameters/listMerchantOperations.payoutId'
+        - $ref: 'merchant-api.v1.json#/components/parameters/listMerchantOperations.crossNetworkPayoutId'
+        - $ref: 'merchant-api.v1.json#/components/parameters/listMerchantOperations.X-Client-Request-Id'
+      responses:
+        '200':
+          description: "Platform response 200, body and status unchanged"
+          headers:
+            X-Example-Call-Id:
+              $ref: '#/components/headers/X-Example-Call-Id'
+            X-Request-Id:
+              $ref: '#/components/headers/X-Request-Id'
+            X-Client-Request-Id:
+              $ref: '#/components/headers/X-Client-Request-Id'
+            X-Api-Key-Deprecated:
+              $ref: '#/components/headers/X-Api-Key-Deprecated'
+          content:
+            application/json:
+              schema:
+                $ref: 'merchant-api.v1.json#/components/schemas/listMerchantOperationsResponse'
+        '4XX':
+          $ref: '#/components/responses/PassthroughError'
+        '5XX':
+          $ref: '#/components/responses/PassthroughError'
+  /api/operations/summary:
+    get:
+      operationId: getMerchantOperationsSummary
+      x-merchant-api: getMerchantOperationsSummary
+      tags: ["Balances and operations"]
+      summary: "Totals of the operations for a period"
+      description: Passthrough of `GET /api/v1/operations/summary`.
+      parameters:
+        - $ref: 'merchant-api.v1.json#/components/parameters/getMerchantOperationsSummary.from'
+        - $ref: 'merchant-api.v1.json#/components/parameters/getMerchantOperationsSummary.to'
+        - $ref: 'merchant-api.v1.json#/components/parameters/getMerchantOperationsSummary.network'
+        - $ref: 'merchant-api.v1.json#/components/parameters/getMerchantOperationsSummary.asset'
+        - $ref: 'merchant-api.v1.json#/components/parameters/getMerchantOperationsSummary.X-Client-Request-Id'
+      responses:
+        '200':
+          description: "Platform response 200, body and status unchanged"
+          headers:
+            X-Example-Call-Id:
+              $ref: '#/components/headers/X-Example-Call-Id'
+            X-Request-Id:
+              $ref: '#/components/headers/X-Request-Id'
+            X-Client-Request-Id:
+              $ref: '#/components/headers/X-Client-Request-Id'
+            X-Api-Key-Deprecated:
+              $ref: '#/components/headers/X-Api-Key-Deprecated'
+          content:
+            application/json:
+              schema:
+                $ref: 'merchant-api.v1.json#/components/schemas/V1OperationsSummary'
+        '4XX':
+          $ref: '#/components/responses/PassthroughError'
+        '5XX':
+          $ref: '#/components/responses/PassthroughError'
+  /api/operations/statement:
+    get:
+      operationId: getMerchantOperationsStatement
+      x-merchant-api: getMerchantOperationsStatement
+      tags: ["Balances and operations"]
+      summary: "Statement for a period, JSON or CSV (format=csv)"
+      description: Passthrough of `GET /api/v1/operations/statement`.
+      parameters:
+        - $ref: 'merchant-api.v1.json#/components/parameters/getMerchantOperationsStatement.from'
+        - $ref: 'merchant-api.v1.json#/components/parameters/getMerchantOperationsStatement.to'
+        - $ref: 'merchant-api.v1.json#/components/parameters/getMerchantOperationsStatement.network'
+        - $ref: 'merchant-api.v1.json#/components/parameters/getMerchantOperationsStatement.asset'
+        - $ref: 'merchant-api.v1.json#/components/parameters/getMerchantOperationsStatement.format'
+        - $ref: 'merchant-api.v1.json#/components/parameters/getMerchantOperationsStatement.X-Client-Request-Id'
+      responses:
+        '200':
+          description: "Platform response 200, body and status unchanged"
+          headers:
+            X-Example-Call-Id:
+              $ref: '#/components/headers/X-Example-Call-Id'
+            X-Request-Id:
+              $ref: '#/components/headers/X-Request-Id'
+            X-Client-Request-Id:
+              $ref: '#/components/headers/X-Client-Request-Id'
+            X-Api-Key-Deprecated:
+              $ref: '#/components/headers/X-Api-Key-Deprecated'
+          content:
+            application/json:
+              schema:
+                $ref: 'merchant-api.v1.json#/components/schemas/V1Statement'
+            text/csv:
+              schema:
+                type: string
+                description: CSV text, a header line and one line per item of V1Statement.
+        '4XX':
+          $ref: '#/components/responses/PassthroughError'
+        '5XX':
+          $ref: '#/components/responses/PassthroughError'
+  /api/operations/{operationId}:
+    get:
+      operationId: getMerchantOperation
+      x-merchant-api: getMerchantOperation
+      tags: ["Balances and operations"]
+      summary: "One operation"
+      description: Passthrough of `GET /api/v1/operations/{operationId}`.
+      parameters:
+        - $ref: 'merchant-api.v1.json#/components/parameters/getMerchantOperation.operationId'
+        - $ref: 'merchant-api.v1.json#/components/parameters/getMerchantOperation.X-Client-Request-Id'
+      responses:
+        '200':
+          description: "Platform response 200, body and status unchanged"
+          headers:
+            X-Example-Call-Id:
+              $ref: '#/components/headers/X-Example-Call-Id'
+            X-Request-Id:
+              $ref: '#/components/headers/X-Request-Id'
+            X-Client-Request-Id:
+              $ref: '#/components/headers/X-Client-Request-Id'
+            X-Api-Key-Deprecated:
+              $ref: '#/components/headers/X-Api-Key-Deprecated'
+          content:
+            application/json:
+              schema:
+                $ref: 'merchant-api.v1.json#/components/schemas/V1Operation'
+        '4XX':
+          $ref: '#/components/responses/PassthroughError'
+        '5XX':
+          $ref: '#/components/responses/PassthroughError'
+  /api/deposits:
+    get:
+      operationId: listMerchantDeposits
+      x-merchant-api: listMerchantDeposits
+      tags: ["Deposits"]
+      summary: "Deposits and their credit status"
+      description: Passthrough of `GET /api/v1/deposits`.
+      parameters:
+        - $ref: 'merchant-api.v1.json#/components/parameters/listMerchantDeposits.page'
+        - $ref: 'merchant-api.v1.json#/components/parameters/listMerchantDeposits.limit'
+        - $ref: 'merchant-api.v1.json#/components/parameters/listMerchantDeposits.from'
+        - $ref: 'merchant-api.v1.json#/components/parameters/listMerchantDeposits.to'
+        - $ref: 'merchant-api.v1.json#/components/parameters/listMerchantDeposits.invoiceId'
+        - $ref: 'merchant-api.v1.json#/components/parameters/listMerchantDeposits.txHash'
+        - $ref: 'merchant-api.v1.json#/components/parameters/listMerchantDeposits.status'
+        - $ref: 'merchant-api.v1.json#/components/parameters/listMerchantDeposits.creditStatus'
+        - $ref: 'merchant-api.v1.json#/components/parameters/listMerchantDeposits.matchKind'
+        - $ref: 'merchant-api.v1.json#/components/parameters/listMerchantDeposits.network'
+        - $ref: 'merchant-api.v1.json#/components/parameters/listMerchantDeposits.asset'
+        - $ref: 'merchant-api.v1.json#/components/parameters/listMerchantDeposits.X-Client-Request-Id'
+      responses:
+        '200':
+          description: "Platform response 200, body and status unchanged"
+          headers:
+            X-Example-Call-Id:
+              $ref: '#/components/headers/X-Example-Call-Id'
+            X-Request-Id:
+              $ref: '#/components/headers/X-Request-Id'
+            X-Client-Request-Id:
+              $ref: '#/components/headers/X-Client-Request-Id'
+            X-Api-Key-Deprecated:
+              $ref: '#/components/headers/X-Api-Key-Deprecated'
+          content:
+            application/json:
+              schema:
+                $ref: 'merchant-api.v1.json#/components/schemas/listMerchantDepositsResponse'
+        '4XX':
+          $ref: '#/components/responses/PassthroughError'
+        '5XX':
+          $ref: '#/components/responses/PassthroughError'
+  /api/deposits/{depositId}:
+    get:
+      operationId: getMerchantDeposit
+      x-merchant-api: getMerchantDeposit
+      tags: ["Deposits"]
+      summary: "One deposit"
+      description: Passthrough of `GET /api/v1/deposits/{depositId}`.
+      parameters:
+        - $ref: 'merchant-api.v1.json#/components/parameters/getMerchantDeposit.depositId'
+        - $ref: 'merchant-api.v1.json#/components/parameters/getMerchantDeposit.X-Client-Request-Id'
+      responses:
+        '200':
+          description: "Platform response 200, body and status unchanged"
+          headers:
+            X-Example-Call-Id:
+              $ref: '#/components/headers/X-Example-Call-Id'
+            X-Request-Id:
+              $ref: '#/components/headers/X-Request-Id'
+            X-Client-Request-Id:
+              $ref: '#/components/headers/X-Client-Request-Id'
+            X-Api-Key-Deprecated:
+              $ref: '#/components/headers/X-Api-Key-Deprecated'
+          content:
+            application/json:
+              schema:
+                $ref: 'merchant-api.v1.json#/components/schemas/V1Deposit'
+        '4XX':
+          $ref: '#/components/responses/PassthroughError'
+        '5XX':
+          $ref: '#/components/responses/PassthroughError'
+  /api/payouts/quote:
+    post:
+      operationId: quotePayout
+      x-merchant-api: quotePayout
+      tags: ["Payouts"]
+      summary: "Payout quote: fees, maximum, limits"
+      description: Passthrough of `POST /api/v1/payouts/quote`.
+      parameters:
+        - $ref: 'merchant-api.v1.json#/components/parameters/quotePayout.X-Client-Request-Id'
+      requestBody:
+        $ref: 'merchant-api.v1.json#/components/requestBodies/quotePayout'
+      responses:
+        '201':
+          description: "Platform response 201, body and status unchanged"
+          headers:
+            X-Example-Call-Id:
+              $ref: '#/components/headers/X-Example-Call-Id'
+            X-Request-Id:
+              $ref: '#/components/headers/X-Request-Id'
+            X-Client-Request-Id:
+              $ref: '#/components/headers/X-Client-Request-Id'
+            X-Api-Key-Deprecated:
+              $ref: '#/components/headers/X-Api-Key-Deprecated'
+          content:
+            application/json:
+              schema:
+                $ref: 'merchant-api.v1.json#/components/schemas/V1PayoutQuote'
+        '4XX':
+          $ref: '#/components/responses/PassthroughError'
+        '5XX':
+          $ref: '#/components/responses/PassthroughError'
+  /api/payouts:
+    post:
+      operationId: createPayout
+      x-merchant-api: createPayout
+      tags: ["Payouts"]
+      summary: "Create a payout request (201 new, 200 the same externalId and fields)"
+      description: Passthrough of `POST /api/v1/payouts`.
+      parameters:
+        - $ref: 'merchant-api.v1.json#/components/parameters/createPayout.X-Client-Request-Id'
+      requestBody:
+        $ref: 'merchant-api.v1.json#/components/requestBodies/createPayout'
+      responses:
+        '200':
+          description: "Platform response 200, body and status unchanged"
+          headers:
+            X-Example-Call-Id:
+              $ref: '#/components/headers/X-Example-Call-Id'
+            X-Request-Id:
+              $ref: '#/components/headers/X-Request-Id'
+            X-Client-Request-Id:
+              $ref: '#/components/headers/X-Client-Request-Id'
+            X-Api-Key-Deprecated:
+              $ref: '#/components/headers/X-Api-Key-Deprecated'
+          content:
+            application/json:
+              schema:
+                $ref: 'merchant-api.v1.json#/components/schemas/V1Payout'
+        '201':
+          description: "Platform response 201, body and status unchanged"
+          headers:
+            X-Example-Call-Id:
+              $ref: '#/components/headers/X-Example-Call-Id'
+            X-Request-Id:
+              $ref: '#/components/headers/X-Request-Id'
+            X-Client-Request-Id:
+              $ref: '#/components/headers/X-Client-Request-Id'
+            X-Api-Key-Deprecated:
+              $ref: '#/components/headers/X-Api-Key-Deprecated'
+          content:
+            application/json:
+              schema:
+                $ref: 'merchant-api.v1.json#/components/schemas/V1Payout'
+        '4XX':
+          $ref: '#/components/responses/PassthroughError'
+        '5XX':
+          $ref: '#/components/responses/PassthroughError'
+    get:
+      operationId: listPayouts
+      x-merchant-api: listPayouts
+      tags: ["Payouts"]
+      summary: "Payouts, newest first, with filters and pages"
+      description: Passthrough of `GET /api/v1/payouts`.
+      parameters:
+        - $ref: 'merchant-api.v1.json#/components/parameters/listPayouts.page'
+        - $ref: 'merchant-api.v1.json#/components/parameters/listPayouts.limit'
+        - $ref: 'merchant-api.v1.json#/components/parameters/listPayouts.from'
+        - $ref: 'merchant-api.v1.json#/components/parameters/listPayouts.to'
+        - $ref: 'merchant-api.v1.json#/components/parameters/listPayouts.externalId'
+        - $ref: 'merchant-api.v1.json#/components/parameters/listPayouts.status'
+        - $ref: 'merchant-api.v1.json#/components/parameters/listPayouts.network'
+        - $ref: 'merchant-api.v1.json#/components/parameters/listPayouts.asset'
+        - $ref: 'merchant-api.v1.json#/components/parameters/listPayouts.X-Client-Request-Id'
+      responses:
+        '200':
+          description: "Platform response 200, body and status unchanged"
+          headers:
+            X-Example-Call-Id:
+              $ref: '#/components/headers/X-Example-Call-Id'
+            X-Request-Id:
+              $ref: '#/components/headers/X-Request-Id'
+            X-Client-Request-Id:
+              $ref: '#/components/headers/X-Client-Request-Id'
+            X-Api-Key-Deprecated:
+              $ref: '#/components/headers/X-Api-Key-Deprecated'
+          content:
+            application/json:
+              schema:
+                $ref: 'merchant-api.v1.json#/components/schemas/listPayoutsResponse'
+        '4XX':
+          $ref: '#/components/responses/PassthroughError'
+        '5XX':
+          $ref: '#/components/responses/PassthroughError'
+  /api/payouts/{payoutId}:
+    get:
+      operationId: getPayout
+      x-merchant-api: getPayout
+      tags: ["Payouts"]
+      summary: "One payout"
+      description: Passthrough of `GET /api/v1/payouts/{payoutId}`.
+      parameters:
+        - $ref: 'merchant-api.v1.json#/components/parameters/getPayout.payoutId'
+        - $ref: 'merchant-api.v1.json#/components/parameters/getPayout.X-Client-Request-Id'
+      responses:
+        '200':
+          description: "Platform response 200, body and status unchanged"
+          headers:
+            X-Example-Call-Id:
+              $ref: '#/components/headers/X-Example-Call-Id'
+            X-Request-Id:
+              $ref: '#/components/headers/X-Request-Id'
+            X-Client-Request-Id:
+              $ref: '#/components/headers/X-Client-Request-Id'
+            X-Api-Key-Deprecated:
+              $ref: '#/components/headers/X-Api-Key-Deprecated'
+          content:
+            application/json:
+              schema:
+                $ref: 'merchant-api.v1.json#/components/schemas/V1Payout'
+        '4XX':
+          $ref: '#/components/responses/PassthroughError'
+        '5XX':
+          $ref: '#/components/responses/PassthroughError'
+  /api/payouts/{payoutId}/cancel:
+    post:
+      operationId: cancelPayout
+      x-merchant-api: cancelPayout
+      tags: ["Payouts"]
+      summary: "Cancel a payout request before its approval"
+      description: Passthrough of `POST /api/v1/payouts/{payoutId}/cancel`.
+      parameters:
+        - $ref: 'merchant-api.v1.json#/components/parameters/cancelPayout.payoutId'
+        - $ref: 'merchant-api.v1.json#/components/parameters/cancelPayout.X-Client-Request-Id'
+      requestBody:
+        $ref: 'merchant-api.v1.json#/components/requestBodies/cancelPayout'
+      responses:
+        '200':
+          description: "Platform response 200, body and status unchanged"
+          headers:
+            X-Example-Call-Id:
+              $ref: '#/components/headers/X-Example-Call-Id'
+            X-Request-Id:
+              $ref: '#/components/headers/X-Request-Id'
+            X-Client-Request-Id:
+              $ref: '#/components/headers/X-Client-Request-Id'
+            X-Api-Key-Deprecated:
+              $ref: '#/components/headers/X-Api-Key-Deprecated'
+          content:
+            application/json:
+              schema:
+                $ref: 'merchant-api.v1.json#/components/schemas/V1Payout'
+        '4XX':
+          $ref: '#/components/responses/PassthroughError'
+        '5XX':
+          $ref: '#/components/responses/PassthroughError'
+  /api/networks:
+    get:
+      operationId: listNetworks
+      x-merchant-api: listNetworks
+      tags: ["Networks and tariff"]
+      summary: "Networks and assets, payout limits"
+      description: Passthrough of `GET /api/v1/networks`.
+      parameters:
+        - $ref: 'merchant-api.v1.json#/components/parameters/listNetworks.X-Client-Request-Id'
+      responses:
+        '200':
+          description: "Platform response 200, body and status unchanged"
+          headers:
+            X-Example-Call-Id:
+              $ref: '#/components/headers/X-Example-Call-Id'
+            X-Request-Id:
+              $ref: '#/components/headers/X-Request-Id'
+            X-Client-Request-Id:
+              $ref: '#/components/headers/X-Client-Request-Id'
+            X-Api-Key-Deprecated:
+              $ref: '#/components/headers/X-Api-Key-Deprecated'
+          content:
+            application/json:
+              schema:
+                $ref: 'merchant-api.v1.json#/components/schemas/V1Networks'
+        '4XX':
+          $ref: '#/components/responses/PassthroughError'
+        '5XX':
+          $ref: '#/components/responses/PassthroughError'
+  /api/tariff:
+    get:
+      operationId: getMerchantTariff
+      x-merchant-api: getMerchantTariff
+      tags: ["Networks and tariff"]
+      summary: "The tariff of the merchant: fee rules"
+      description: Passthrough of `GET /api/v1/tariff`.
+      parameters:
+        - $ref: 'merchant-api.v1.json#/components/parameters/getMerchantTariff.X-Client-Request-Id'
+      responses:
+        '200':
+          description: "Platform response 200, body and status unchanged"
+          headers:
+            X-Example-Call-Id:
+              $ref: '#/components/headers/X-Example-Call-Id'
+            X-Request-Id:
+              $ref: '#/components/headers/X-Request-Id'
+            X-Client-Request-Id:
+              $ref: '#/components/headers/X-Client-Request-Id'
+            X-Api-Key-Deprecated:
+              $ref: '#/components/headers/X-Api-Key-Deprecated'
+          content:
+            application/json:
+              schema:
+                $ref: 'merchant-api.v1.json#/components/schemas/V1Tariff'
+        '4XX':
+          $ref: '#/components/responses/PassthroughError'
+        '5XX':
+          $ref: '#/components/responses/PassthroughError'
+  /api/webhook:
+    get:
+      operationId: getWebhookSettings
+      x-merchant-api: getWebhookSettings
+      tags: ["Webhook settings"]
+      summary: "Webhook settings and the delivery state"
+      description: Passthrough of `GET /api/v1/webhook`.
+      parameters:
+        - $ref: 'merchant-api.v1.json#/components/parameters/getWebhookSettings.X-Client-Request-Id'
+      responses:
+        '200':
+          description: "Platform response 200, body and status unchanged"
+          headers:
+            X-Example-Call-Id:
+              $ref: '#/components/headers/X-Example-Call-Id'
+            X-Request-Id:
+              $ref: '#/components/headers/X-Request-Id'
+            X-Client-Request-Id:
+              $ref: '#/components/headers/X-Client-Request-Id'
+            X-Api-Key-Deprecated:
+              $ref: '#/components/headers/X-Api-Key-Deprecated'
+          content:
+            application/json:
+              schema:
+                $ref: 'merchant-api.v1.json#/components/schemas/GatewayWebhookSettings'
+        '4XX':
+          $ref: '#/components/responses/PassthroughError'
+        '5XX':
+          $ref: '#/components/responses/PassthroughError'
+    put:
+      operationId: setWebhookUrl
+      x-merchant-api: setWebhookUrl
+      tags: ["Webhook settings"]
+      summary: "Set or change the webhook URL (200, or 202 when the platform finishes it later)"
+      description: Passthrough of `PUT /api/v1/webhook`.
+      parameters:
+        - $ref: 'merchant-api.v1.json#/components/parameters/setWebhookUrl.X-Client-Request-Id'
+      requestBody:
+        $ref: 'merchant-api.v1.json#/components/requestBodies/setWebhookUrl'
+      responses:
+        '200':
+          description: "Platform response 200, body and status unchanged"
+          headers:
+            X-Example-Call-Id:
+              $ref: '#/components/headers/X-Example-Call-Id'
+            X-Request-Id:
+              $ref: '#/components/headers/X-Request-Id'
+            X-Client-Request-Id:
+              $ref: '#/components/headers/X-Client-Request-Id'
+            X-Api-Key-Deprecated:
+              $ref: '#/components/headers/X-Api-Key-Deprecated'
+          content:
+            application/json:
+              schema:
+                $ref: 'merchant-api.v1.json#/components/schemas/GatewayWebhookSettings'
+        '202':
+          description: "Platform response 202, body and status unchanged"
+          headers:
+            X-Example-Call-Id:
+              $ref: '#/components/headers/X-Example-Call-Id'
+            X-Request-Id:
+              $ref: '#/components/headers/X-Request-Id'
+            X-Client-Request-Id:
+              $ref: '#/components/headers/X-Client-Request-Id'
+            X-Api-Key-Deprecated:
+              $ref: '#/components/headers/X-Api-Key-Deprecated'
+          content:
+            application/json:
+              schema:
+                $ref: 'merchant-api.v1.json#/components/schemas/GatewayWebhookSettings'
+        '4XX':
+          $ref: '#/components/responses/PassthroughError'
+        '5XX':
+          $ref: '#/components/responses/PassthroughError'
+    delete:
+      operationId: removeWebhookUrl
+      x-merchant-api: removeWebhookUrl
+      tags: ["Webhook settings"]
+      summary: "Remove the webhook URL (200 or 202)"
+      description: Passthrough of `DELETE /api/v1/webhook`.
+      parameters:
+        - $ref: 'merchant-api.v1.json#/components/parameters/removeWebhookUrl.X-Client-Request-Id'
+      responses:
+        '200':
+          description: "Platform response 200, body and status unchanged"
+          headers:
+            X-Example-Call-Id:
+              $ref: '#/components/headers/X-Example-Call-Id'
+            X-Request-Id:
+              $ref: '#/components/headers/X-Request-Id'
+            X-Client-Request-Id:
+              $ref: '#/components/headers/X-Client-Request-Id'
+            X-Api-Key-Deprecated:
+              $ref: '#/components/headers/X-Api-Key-Deprecated'
+          content:
+            application/json:
+              schema:
+                $ref: 'merchant-api.v1.json#/components/schemas/GatewayWebhookSettings'
+        '202':
+          description: "Platform response 202, body and status unchanged"
+          headers:
+            X-Example-Call-Id:
+              $ref: '#/components/headers/X-Example-Call-Id'
+            X-Request-Id:
+              $ref: '#/components/headers/X-Request-Id'
+            X-Client-Request-Id:
+              $ref: '#/components/headers/X-Client-Request-Id'
+            X-Api-Key-Deprecated:
+              $ref: '#/components/headers/X-Api-Key-Deprecated'
+          content:
+            application/json:
+              schema:
+                $ref: 'merchant-api.v1.json#/components/schemas/GatewayWebhookSettings'
+        '4XX':
+          $ref: '#/components/responses/PassthroughError'
+        '5XX':
+          $ref: '#/components/responses/PassthroughError'
+  /api/webhook/test:
+    post:
+      operationId: sendTestWebhook
+      x-merchant-api: sendTestWebhook
+      tags: ["Webhook settings"]
+      summary: "Send a test webhook and wait for its result"
+      description: Passthrough of `POST /api/v1/webhook/test`.
+      parameters:
+        - $ref: 'merchant-api.v1.json#/components/parameters/sendTestWebhook.X-Client-Request-Id'
+      requestBody:
+        $ref: 'merchant-api.v1.json#/components/requestBodies/sendTestWebhook'
+      responses:
+        '201':
+          description: "Platform response 201, body and status unchanged"
+          headers:
+            X-Example-Call-Id:
+              $ref: '#/components/headers/X-Example-Call-Id'
+            X-Request-Id:
+              $ref: '#/components/headers/X-Request-Id'
+            X-Client-Request-Id:
+              $ref: '#/components/headers/X-Client-Request-Id'
+            X-Api-Key-Deprecated:
+              $ref: '#/components/headers/X-Api-Key-Deprecated'
+          content:
+            application/json:
+              schema:
+                $ref: 'merchant-api.v1.json#/components/schemas/V1DeliveryFull'
+        '4XX':
+          $ref: '#/components/responses/PassthroughError'
+        '5XX':
+          $ref: '#/components/responses/PassthroughError'
+  /api/webhook/deliveries:
+    get:
+      operationId: listDeliveries
+      x-merchant-api: listDeliveries
+      tags: ["Webhook settings"]
+      summary: "The webhook delivery log, with filters and pages"
+      description: Passthrough of `GET /api/v1/webhook/deliveries`.
+      parameters:
+        - $ref: 'merchant-api.v1.json#/components/parameters/listDeliveries.page'
+        - $ref: 'merchant-api.v1.json#/components/parameters/listDeliveries.limit'
+        - $ref: 'merchant-api.v1.json#/components/parameters/listDeliveries.from'
+        - $ref: 'merchant-api.v1.json#/components/parameters/listDeliveries.to'
+        - $ref: 'merchant-api.v1.json#/components/parameters/listDeliveries.status'
+        - $ref: 'merchant-api.v1.json#/components/parameters/listDeliveries.kind'
+        - $ref: 'merchant-api.v1.json#/components/parameters/listDeliveries.type'
+        - $ref: 'merchant-api.v1.json#/components/parameters/listDeliveries.invoiceId'
+        - $ref: 'merchant-api.v1.json#/components/parameters/listDeliveries.X-Client-Request-Id'
+      responses:
+        '200':
+          description: "Platform response 200, body and status unchanged"
+          headers:
+            X-Example-Call-Id:
+              $ref: '#/components/headers/X-Example-Call-Id'
+            X-Request-Id:
+              $ref: '#/components/headers/X-Request-Id'
+            X-Client-Request-Id:
+              $ref: '#/components/headers/X-Client-Request-Id'
+            X-Api-Key-Deprecated:
+              $ref: '#/components/headers/X-Api-Key-Deprecated'
+          content:
+            application/json:
+              schema:
+                $ref: 'merchant-api.v1.json#/components/schemas/listDeliveriesResponse'
+        '4XX':
+          $ref: '#/components/responses/PassthroughError'
+        '5XX':
+          $ref: '#/components/responses/PassthroughError'
+  /api/webhook/deliveries/{deliveryId}:
+    get:
+      operationId: getDelivery
+      x-merchant-api: getDelivery
+      tags: ["Webhook settings"]
+      summary: "A delivery with its body and attempts"
+      description: Passthrough of `GET /api/v1/webhook/deliveries/{deliveryId}`.
+      parameters:
+        - $ref: 'merchant-api.v1.json#/components/parameters/getDelivery.deliveryId'
+        - $ref: 'merchant-api.v1.json#/components/parameters/getDelivery.X-Client-Request-Id'
+      responses:
+        '200':
+          description: "Platform response 200, body and status unchanged"
+          headers:
+            X-Example-Call-Id:
+              $ref: '#/components/headers/X-Example-Call-Id'
+            X-Request-Id:
+              $ref: '#/components/headers/X-Request-Id'
+            X-Client-Request-Id:
+              $ref: '#/components/headers/X-Client-Request-Id'
+            X-Api-Key-Deprecated:
+              $ref: '#/components/headers/X-Api-Key-Deprecated'
+          content:
+            application/json:
+              schema:
+                $ref: 'merchant-api.v1.json#/components/schemas/V1DeliveryFull'
+        '4XX':
+          $ref: '#/components/responses/PassthroughError'
+        '5XX':
+          $ref: '#/components/responses/PassthroughError'
+  /api/webhook/deliveries/{deliveryId}/redeliver:
+    post:
+      operationId: redeliverDelivery
+      x-merchant-api: redeliverDelivery
+      tags: ["Webhook settings"]
+      summary: "Send a delivery again"
+      description: Passthrough of `POST /api/v1/webhook/deliveries/{deliveryId}/redeliver`.
+      parameters:
+        - $ref: 'merchant-api.v1.json#/components/parameters/redeliverDelivery.deliveryId'
+        - $ref: 'merchant-api.v1.json#/components/parameters/redeliverDelivery.X-Client-Request-Id'
+      responses:
+        '200':
+          description: "Platform response 200, body and status unchanged"
+          headers:
+            X-Example-Call-Id:
+              $ref: '#/components/headers/X-Example-Call-Id'
+            X-Request-Id:
+              $ref: '#/components/headers/X-Request-Id'
+            X-Client-Request-Id:
+              $ref: '#/components/headers/X-Client-Request-Id'
+            X-Api-Key-Deprecated:
+              $ref: '#/components/headers/X-Api-Key-Deprecated'
+          content:
+            application/json:
+              schema:
+                $ref: 'merchant-api.v1.json#/components/schemas/V1Delivery'
+        '4XX':
+          $ref: '#/components/responses/PassthroughError'
+        '5XX':
+          $ref: '#/components/responses/PassthroughError'
+  /api/config:
+    get:
+      operationId: getConfig
+      x-example-extra: true
+      tags: [Example]
+      summary: Which backend this is and what it is connected to
+      description: No platform call. Never contains the API secret.
+      responses:
+        '200':
+          description: The configuration of this deployment
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Config'
+        '4XX':
+          $ref: '#/components/responses/ExampleError'
+  /api/invoices/{invoiceId}/checkout-link:
+    post:
+      operationId: createCheckoutLink
+      x-example-extra: true
+      tags: [Payment widget]
+      summary: A signed link to the payment page of an invoice
+      description: |
+        Built offline with the API secret (gateway docs 20.2–20.3): sdk — `psp.checkout.createUrl()`, plain — its own
+        HMAC. No platform call and no request-log entry: the payment page checks the invoice itself when it opens.
+        The UI shows `url` in an `<iframe>` (or `<PspCheckout url>` of `@qubiq-psp/react`).
+      parameters:
+        - name: invoiceId
+          in: path
+          required: true
+          description: The invoice id, a lower-case uuid.
+          schema:
+            type: string
+            pattern: '^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$'
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CheckoutLinkInput'
+      responses:
+        '200':
+          description: The link
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CheckoutLink'
+        '400':
+          $ref: '#/components/responses/ExampleError'
+  /api/request-log:
+    get:
+      operationId: listRequestLog
+      x-example-extra: true
+      tags: [Request log]
+      summary: Requests the backend sent to the platform, newest first
+      parameters:
+        - name: operationId
+          in: query
+          description: Merchant API operationId.
+          schema: { type: string }
+        - name: callId
+          in: query
+          description: The `X-Example-Call-Id` of a contract response — all attempts of that call.
+          schema: { type: string, format: uuid }
+        - name: status
+          in: query
+          description: Status class; `error` — no response at all (timeout, network).
+          schema: { type: string, enum: ['2xx', '3xx', '4xx', '5xx', error] }
+        - $ref: '#/components/parameters/Page'
+        - $ref: '#/components/parameters/Limit'
+      responses:
+        '200':
+          description: One page of the log
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RequestLogPage'
+        '400':
+          $ref: '#/components/responses/ExampleError'
+    delete:
+      operationId: clearRequestLog
+      x-example-extra: true
+      tags: [Request log]
+      summary: Clear the request log
+      responses:
+        '204':
+          description: Cleared
+        '4XX':
+          $ref: '#/components/responses/ExampleError'
+  /api/request-log/{entryId}:
+    get:
+      operationId: getRequestLogEntry
+      x-example-extra: true
+      tags: [Request log]
+      summary: One request with headers and bodies
+      parameters:
+        - name: entryId
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        '200':
+          description: The entry
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RequestLogEntry'
+        '404':
+          $ref: '#/components/responses/ExampleError'
+  /api/stream:
+    get:
+      operationId: streamEvents
+      x-example-extra: true
+      tags: [Request log]
+      summary: Server-Sent Events — new request-log entries and received webhooks
+      description: |
+        `text/event-stream`. On connect: `retry: 3000`, then the event `ready`. Afterwards one event per new
+        request-log entry (`request`) and per received webhook (`webhook`); a comment line `: ping` every 20 s.
+        `id:` of an event is the id of its entry. There is no replay: after a reconnect the UI refetches the lists.
+        The `data:` of each event is one line of JSON, by the schemas in `x-sse-events`.
+      x-sse-events:
+        ready:
+          type: object
+          required: [backend, serverTime]
+          properties:
+            backend: { type: string, enum: [plain, sdk] }
+            serverTime: { type: string, format: date-time }
+        request:
+          $ref: '#/components/schemas/RequestLogItem'
+        webhook:
+          $ref: '#/components/schemas/ReceivedWebhookItem'
+      responses:
+        '200':
+          description: The event stream; it stays open
+          headers:
+            Cache-Control:
+              schema: { type: string, const: no-store }
+            X-Accel-Buffering:
+              description: Tells nginx not to buffer the stream.
+              schema: { type: string, const: 'no' }
+          content:
+            text/event-stream:
+              schema:
+                type: string
+              example: |
+                retry: 3000
+
+                event: ready
+                data: {"backend":"plain","serverTime":"2026-11-17T12:00:00.000Z"}
+
+                event: request
+                id: 0b1e…
+                data: {"id":"0b1e…","callId":"7c2d…","operationId":"createInvoice",…}
+
+                : ping
+        '4XX':
+          $ref: '#/components/responses/ExampleError'
+  /api/received-webhooks:
+    get:
+      operationId: listReceivedWebhooks
+      x-example-extra: true
+      tags: [Webhook receiver]
+      summary: Webhooks that reached `POST /webhooks/psp`, newest first
+      parameters:
+        - name: invoiceId
+          in: query
+          schema: { type: string }
+        - name: webhookId
+          in: query
+          description: '`X-Webhook-Id` — all attempts and redeliveries of one notification.'
+          schema: { type: string }
+        - name: event
+          in: query
+          description: '`X-Webhook-Event`, e.g. `invoice.paid`, `webhook.test`.'
+          schema: { type: string }
+        - name: result
+          in: query
+          description: '`ok` — verification passed; `failed` — any other verification result.'
+          schema: { type: string, enum: [ok, failed] }
+        - $ref: '#/components/parameters/Page'
+        - $ref: '#/components/parameters/Limit'
+      responses:
+        '200':
+          description: One page of the log
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ReceivedWebhookPage'
+        '400':
+          $ref: '#/components/responses/ExampleError'
+    delete:
+      operationId: clearReceivedWebhooks
+      x-example-extra: true
+      tags: [Webhook receiver]
+      summary: Clear the received-webhooks log
+      description: The duplicate check of the receiver starts afresh as well.
+      responses:
+        '204':
+          description: Cleared
+        '4XX':
+          $ref: '#/components/responses/ExampleError'
+  /api/received-webhooks/{receivedId}:
+    get:
+      operationId: getReceivedWebhook
+      x-example-extra: true
+      tags: [Webhook receiver]
+      summary: One received webhook with headers, raw body, verification and our answer
+      parameters:
+        - name: receivedId
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        '200':
+          description: The webhook
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ReceivedWebhook'
+        '404':
+          $ref: '#/components/responses/ExampleError'
+  /api/receiver:
+    get:
+      operationId: getReceiverSettings
+      x-example-extra: true
+      tags: [Webhook receiver]
+      summary: How the receiver answers webhooks
+      responses:
+        '200':
+          description: The settings
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ReceiverSettings'
+        '4XX':
+          $ref: '#/components/responses/ExampleError'
+    put:
+      operationId: setReceiverSettings
+      x-example-extra: true
+      tags: [Webhook receiver]
+      summary: Change how the receiver answers — to test retries, `failed` deliveries and redelivery
+      description: All fields are required; the answer is the stored settings. Kept in memory, reset on restart.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ReceiverSettings'
+      responses:
+        '200':
+          description: The stored settings
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ReceiverSettings'
+        '400':
+          $ref: '#/components/responses/ExampleError'
+  /webhooks/psp:
+    post:
+      operationId: receivePspWebhook
+      x-example-extra: true
+      x-caller: platform
+      tags: [Webhook receiver]
+      summary: Receiver of platform webhooks (called by the platform, not by the UI)
+      description: |
+        Public: nginx must not put basic auth on this path. The backend reads the raw body bytes before any parsing and
+        verifies them by webhook-service docs 13.6 with the API secret (and `PSP_API_PREVIOUS_SECRET` if set), with the
+        semantics of the SDK's `verifyWebhook()` without `expectedMerchantId`. Every request is stored in the
+        received-webhooks log (and sent as the SSE event `webhook`) before the answer. The answer follows
+        `ReceiverSettings`: in `auto` — `200` on a valid webhook (also a duplicate), `401`/`400` by the verification
+        result; `failNext` and `fixed` override the status.
+      parameters:
+        - { name: X-Webhook-Id, in: header, schema: { type: string } }
+        - { name: X-Webhook-Event, in: header, schema: { type: string } }
+        - { name: X-Webhook-Timestamp, in: header, schema: { type: string } }
+        - { name: X-Webhook-Signature, in: header, schema: { type: string } }
+        - { name: X-Webhook-Attempt, in: header, schema: { type: string } }
+      requestBody:
+        required: true
+        description: The webhook body, version 1 (webhook-service docs 13.3). Stored as received, byte for byte.
+        content:
+          application/json:
+            schema:
+              type: object
+      responses:
+        '200':
+          description: Accepted (also a duplicate by `X-Webhook-Id`)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ReceiverAck'
+        '400':
+          description: Valid signature, bad body (`bad_body`, `id_mismatch`, `type_mismatch`, `unsupported_version`)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ReceiverRefusal'
+        '401':
+          description: Verification failed (`missing_header`, `bad_timestamp`, `timestamp_out_of_window`, `bad_signature_header`, `signature_mismatch`, `chain_mismatch`)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ReceiverRefusal'
+        default:
+          description: The status set by `ReceiverSettings` (`fixed` or `failNext`)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ReceiverForced'
+components:
+  headers:
+    X-Example-Call-Id:
+      description: |
+        Set by the backend on every response of a passthrough route, success or error (also on backend-own errors):
+        the id of this contract call. The request-log entries of the call carry it as `callId` — one entry per attempt.
+      required: true
+      schema: { type: string, format: uuid }
+    X-Request-Id:
+      description: Platform `X-Request-Id`, passed through. Absent when the platform did not answer.
+      schema: { type: string }
+    X-Client-Request-Id:
+      description: Platform echo of `X-Client-Request-Id`, passed through.
+      schema: { type: string }
+    X-Api-Key-Deprecated:
+      description: Passed through. The request was signed with the previous key; the value is the time until which it works, ISO 8601.
+      schema: { type: string }
+    Retry-After:
+      description: Passed through on `429` and `503 maintenance`.
+      schema: { type: string }
+  parameters:
+    Page:
+      name: page
+      in: query
+      schema: { type: integer, minimum: 1, default: 1 }
+    Limit:
+      name: limit
+      in: query
+      schema: { type: integer, minimum: 1, maximum: 200, default: 50 }
+  responses:
+    PassthroughError:
+      description: |
+        A platform error — status, body and the headers below exactly as the platform sent them — or, when the
+        platform gave no usable answer or the backend refused the input before sending, a backend-own error with an
+        `example_*` code (see `ExampleErrorCode`).
+      headers:
+        X-Example-Call-Id:
+          $ref: '#/components/headers/X-Example-Call-Id'
+        X-Request-Id:
+          $ref: '#/components/headers/X-Request-Id'
+        X-Client-Request-Id:
+          $ref: '#/components/headers/X-Client-Request-Id'
+        X-Api-Key-Deprecated:
+          $ref: '#/components/headers/X-Api-Key-Deprecated'
+        Retry-After:
+          $ref: '#/components/headers/Retry-After'
+      content:
+        application/json:
+          schema:
+            anyOf:
+              - $ref: 'merchant-api.v1.json#/components/schemas/ErrorResponse'
+              - $ref: '#/components/schemas/ExampleError'
+    ExampleError:
+      description: A backend-own error of an example route.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ExampleError'
+  schemas:
+    ExampleErrorCode:
+      type: string
+      description: |
+        Codes of errors produced by a backend itself, never by the platform:
+        - `example_invalid_request` (400) — refused before any platform call: a bad JSON body, an `X-Client-Request-Id`
+          outside `^[\x21-\x7E]{1,128}$`, a path id that is empty, `.` or `..`, bad widget-link options, bad receiver settings or log
+          filters. `details`: `{ field, message }`.
+        - `example_not_found` (404) — an unknown route, request-log entry or received webhook.
+        - `example_upstream_timeout` (504) — the platform did not answer in time. `details`: `{ timeoutMs }`.
+        - `example_upstream_unreachable` (502) — no connection, DNS or TLS failure. `details`: `{ cause }`.
+        - `example_upstream_bad_response` (502) — an answer that is not the platform's: a redirect, a non-JSON error
+          body, an empty success body. `details`: `{ status, requestId, bodyPreview }`.
+        - `example_internal_error` (500) — a bug in the backend.
+      enum:
+        - example_invalid_request
+        - example_not_found
+        - example_upstream_timeout
+        - example_upstream_unreachable
+        - example_upstream_bad_response
+        - example_internal_error
+    ExampleError:
+      type: object
+      description: The same shape as the platform `ErrorResponse`, with an `example_*` code.
+      required: [errorCode, errorMessage, details]
+      properties:
+        errorCode:
+          $ref: '#/components/schemas/ExampleErrorCode'
+        errorMessage:
+          type: string
+          description: English text for the developer. Never contains the secret.
+        details:
+          type: [object, 'null']
+          additionalProperties: true
+    Config:
+      type: object
+      required: [backend, version, sdkVersion, net, apiUrl, keyId, secretHint, previousSecretSet, checkoutUrl, webhookUrl, serverTime]
+      properties:
+        backend:
+          type: string
+          enum: [plain, sdk]
+        version:
+          type: string
+          description: Version of the example backend.
+        sdkVersion:
+          type: [string, 'null']
+          description: Version of `@qubiq-psp/sdk` (sdk); `null` (plain).
+        net:
+          type: string
+          enum: [testnet, mainnet]
+          description: By the key prefix. Deployed examples are always `testnet`; a backend refuses to start with `psp_pk_live_`.
+        apiUrl:
+          type: string
+          format: uri
+          description: Base URL of the Merchant API the backend calls.
+        keyId:
+          type: string
+          description: The API key `psp_pk_…` (public).
+          examples: [psp_pk_test_Ab12Cd34Ef56Gh78Ij90Kl12]
+        secretHint:
+          type: string
+          description: The secret's prefix and last 4 characters — to tell which secret is configured. Never the secret.
+          examples: [psp_sk_test_…9xQ2]
+        previousSecretSet:
+          type: boolean
+          description: '`PSP_API_PREVIOUS_SECRET` is set: the receiver also accepts webhooks signed with it.'
+        checkoutUrl:
+          type: string
+          format: uri
+          description: Origin of the payment page; the UI allows it in `frame-src` and checks `event.origin` of its messages.
+          examples: ['https://pay.psp.qubiq.cc']
+        webhookUrl:
+          type: [string, 'null']
+          format: uri
+          description: '`{PUBLIC_URL}/webhooks/psp` — the receiver of this deployment, to set with `PUT /api/webhook`; `null` when `PUBLIC_URL` is not set.'
+        serverTime:
+          type: string
+          format: date-time
+    CheckoutBranding:
+      type: object
+      additionalProperties: false
+      description: Appearance of the payment page (gateway docs 20.3). Text is shown as text, the logo only as an image.
+      properties:
+        companyName: { type: string, minLength: 1, maxLength: 64 }
+        logoUrl: { type: string, maxLength: 1024, description: 'An `https:` URL without credentials and `#`.' }
+        accentColor: { type: string, pattern: '^#[0-9a-fA-F]{6}$' }
+        theme: { type: string, enum: [light, dark, auto] }
+        title: { type: string, minLength: 1, maxLength: 100, description: 'Order caption, e.g. `Order #10530`.' }
+    CheckoutLinkInput:
+      type: object
+      additionalProperties: false
+      description: The options of `psp.checkout.createUrl()`; the plain backend applies the same rules.
+      properties:
+        branding:
+          $ref: '#/components/schemas/CheckoutBranding'
+        locale:
+          type: string
+          enum: [ru, en]
+          description: Without it the page follows the buyer's browser.
+        expiresInSeconds:
+          type: integer
+          minimum: 1
+          maximum: 604800
+          default: 86400
+    CheckoutLink:
+      type: object
+      required: [url, token, expiresAt]
+      properties:
+        url:
+          type: string
+          format: uri
+          description: '`{checkoutUrl}/#v1.…` — the `src` of the frame.'
+        token:
+          type: string
+          description: The token after `#`.
+        expiresAt:
+          type: string
+          format: date-time
+    RequestLogItem:
+      type: object
+      description: One attempt of one request to the platform. The SSE event `request` carries this object.
+      required: [id, callId, createdAt, operationId, sdkMethod, attempt, method, path, status, errorCode, requestId, clientRequestId, apiKeyDeprecatedUntil, durationMs, transportError]
+      properties:
+        id: { type: string, format: uuid }
+        callId:
+          type: string
+          format: uuid
+          description: '`X-Example-Call-Id` of the contract response this attempt belongs to.'
+        createdAt:
+          type: string
+          format: date-time
+          description: When the attempt was sent.
+        operationId:
+          type: string
+          description: Merchant API operationId — the coverage test reads it.
+        sdkMethod:
+          type: [string, 'null']
+          description: The SDK method the backend called, e.g. `invoices.create` (sdk); `null` (plain).
+        attempt:
+          type: integer
+          minimum: 1
+          description: 1 for plain (one attempt per call); sdk logs each retry of the SDK as its own entry.
+        method:
+          type: string
+          enum: [GET, POST, PUT, DELETE]
+        path:
+          type: string
+          description: Path with the query exactly as sent and signed, e.g. `/api/v1/invoices?status=active,partially_paid&limit=20`.
+        status:
+          type: [integer, 'null']
+          description: Platform HTTP status; `null` — no answer (see `transportError`).
+        errorCode:
+          type: [string, 'null']
+          description: '`errorCode` of a non-2xx JSON answer.'
+        requestId:
+          type: [string, 'null']
+          description: '`X-Request-Id` of the answer.'
+        clientRequestId:
+          type: [string, 'null']
+          description: '`X-Client-Request-Id` sent.'
+        apiKeyDeprecatedUntil:
+          type: [string, 'null']
+          description: '`X-Api-Key-Deprecated` of the answer.'
+        durationMs:
+          type: integer
+          minimum: 0
+        transportError:
+          oneOf:
+            - type: 'null'
+            - type: object
+              required: [code, message]
+              properties:
+                code: { type: string, enum: [timeout, network] }
+                message: { type: string }
+    RequestLogEntry:
+      description: An entry with headers and bodies. Never contains the API secret.
+      allOf:
+        - $ref: '#/components/schemas/RequestLogItem'
+        - type: object
+          required: [url, requestHeaders, requestBody, responseHeaders, responseBody, responseBodyTruncated, signing]
+          properties:
+            url: { type: string, format: uri }
+            requestHeaders:
+              type: object
+              additionalProperties: { type: string }
+              description: As sent, signature headers included (`X-Api-Key`, `X-Api-Timestamp`, `X-Api-Nonce`, `X-Api-Signature`).
+            requestBody:
+              type: [string, 'null']
+              description: The body bytes as sent (UTF-8); `null` — no body.
+            responseHeaders:
+              type: [object, 'null']
+              additionalProperties: { type: string }
+              description: Header names in lower case.
+            responseBody:
+              type: [string, 'null']
+              description: The body as text, cut to 256 KB.
+            responseBodyTruncated: { type: boolean }
+            signing:
+              description: |
+                plain — always: what it signed. sdk — `null` (the SDK signs inside), except at `401 api_auth_failed`
+                where the SDK's `PspAuthError.localStringToSign` fills `stringToSign`.
+              oneOf:
+                - type: 'null'
+                - type: object
+                  required: [stringToSign, bodySha256]
+                  properties:
+                    stringToSign:
+                      type: string
+                      description: The six lines joined with `\n` (gateway docs 13.2).
+                    bodySha256: { type: [string, 'null'] }
+    RequestLogPage:
+      type: object
+      required: [items, page, limit, total]
+      properties:
+        items:
+          type: array
+          items: { $ref: '#/components/schemas/RequestLogItem' }
+        page: { type: integer }
+        limit: { type: integer }
+        total: { type: integer, description: Matching entries still kept. }
+    WebhookVerifyResult:
+      type: string
+      description: |
+        `ok` or the first failed step — the reasons of the SDK's `WebhookVerificationError` (webhook-service docs 13.6).
+        `merchant_mismatch` is not used: the backends do not pass `expectedMerchantId`.
+      enum:
+        - ok
+        - missing_header
+        - bad_timestamp
+        - timestamp_out_of_window
+        - bad_signature_header
+        - signature_mismatch
+        - bad_body
+        - id_mismatch
+        - type_mismatch
+        - unsupported_version
+        - chain_mismatch
+    ReceivedWebhookItem:
+      type: object
+      description: One request that reached the receiver. The SSE event `webhook` carries this object.
+      required: [id, receivedAt, webhookId, event, attempt, invoiceId, externalId, invoiceStatus, verifyResult, signedWith, duplicate, responseStatus, responseDelayMs]
+      properties:
+        id: { type: string, format: uuid, description: Id of the log entry (not the webhook id). }
+        receivedAt: { type: string, format: date-time }
+        webhookId: { type: [string, 'null'], description: '`X-Webhook-Id`.' }
+        event: { type: [string, 'null'], description: '`X-Webhook-Event`.' }
+        attempt: { type: [integer, 'null'], description: '`X-Webhook-Attempt`.' }
+        invoiceId: { type: [string, 'null'], description: '`data.invoice.id` of the body.' }
+        externalId: { type: [string, 'null'], description: '`data.invoice.externalId` of the body.' }
+        invoiceStatus: { type: [string, 'null'], description: '`data.invoice.status` of the body.' }
+        verifyResult: { $ref: '#/components/schemas/WebhookVerifyResult' }
+        signedWith:
+          type: [string, 'null']
+          enum: [current, previous, null]
+          description: Which secret matched; `null` — none.
+        duplicate:
+          type: boolean
+          description: A valid webhook whose `X-Webhook-Id` was already accepted with `2xx`.
+        responseStatus: { type: integer, description: What the receiver answered. }
+        responseDelayMs: { type: integer, minimum: 0 }
+    ReceivedWebhook:
+      allOf:
+        - $ref: '#/components/schemas/ReceivedWebhookItem'
+        - type: object
+          required: [remoteIp, headers, body, json, verify, responseBody]
+          properties:
+            remoteIp: { type: [string, 'null'] }
+            headers:
+              type: object
+              additionalProperties: { type: string }
+              description: All request headers, names in lower case.
+            body:
+              type: string
+              description: The raw body as received (UTF-8).
+            json:
+              description: The body parsed as JSON; `null` when it is not JSON.
+            verify:
+              $ref: '#/components/schemas/WebhookVerification'
+            responseBody: { type: [string, 'null'] }
+    WebhookVerification:
+      type: object
+      required: [result, message, timestamp, skewSeconds, signatureValid, expectedSignature, bodyBytes]
+      properties:
+        result: { $ref: '#/components/schemas/WebhookVerifyResult' }
+        message: { type: string, description: 'Why, in English.' }
+        timestamp: { type: [integer, 'null'], description: '`X-Webhook-Timestamp`.' }
+        skewSeconds: { type: [integer, 'null'], description: Server time minus `timestamp`. }
+        signatureValid:
+          type: boolean
+          description: The signature matches a configured secret, even if another step failed (e.g. the time window).
+        expectedSignature:
+          type: [string, 'null']
+          description: '`v1=…` computed with the current secret over `{timestamp}.{body}` (sdk — `signWebhook()`); `null` without a timestamp.'
+        bodyBytes: { type: integer, minimum: 0 }
+    ReceivedWebhookPage:
+      type: object
+      required: [items, page, limit, total]
+      properties:
+        items:
+          type: array
+          items: { $ref: '#/components/schemas/ReceivedWebhookItem' }
+        page: { type: integer }
+        limit: { type: integer }
+        total: { type: integer }
+    ReceiverSettings:
+      type: object
+      additionalProperties: false
+      required: [mode, status, delayMs, failNext]
+      properties:
+        mode:
+          type: string
+          enum: [auto, fixed]
+          description: '`auto` — `200` on a valid webhook or a duplicate, `401`/`400` on a failed verification; `fixed` — always `status`.'
+        status:
+          type: integer
+          minimum: 200
+          maximum: 599
+          description: The status of `fixed` mode and of `failNext`.
+        delayMs:
+          type: integer
+          minimum: 0
+          maximum: 30000
+          description: Delay before the answer. The platform's deadline per attempt is 10 s.
+        failNext:
+          type: integer
+          minimum: 0
+          maximum: 100
+          description: How many next webhooks get `status` instead of the `auto` answer; counts down.
+      examples:
+        - { mode: auto, status: 500, delayMs: 0, failNext: 0 }
+    ReceiverAck:
+      type: object
+      required: [received, duplicate]
+      properties:
+        received: { type: boolean, const: true }
+        duplicate: { type: boolean }
+    ReceiverRefusal:
+      type: object
+      required: [errorCode, errorMessage]
+      properties:
+        errorCode: { $ref: '#/components/schemas/WebhookVerifyResult' }
+        errorMessage: { type: string }
+    ReceiverForced:
+      type: object
+      required: [forced]
+      properties:
+        forced:
+          type: string
+          enum: [fixed, fail_next]
