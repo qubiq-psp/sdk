@@ -7,3 +7,5 @@ examples/contract/merchant-api.v1.json
 examples/contract/src/openapi.d.ts
 examples/contract/src/routes.json
 examples/contract/types/
+# Webhook bodies of the test vectors, byte for byte
+examples/plain/api/test/vectors/

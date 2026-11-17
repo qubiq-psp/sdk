@@ -1,0 +1,35 @@
+{
+  "name": "@psp-examples/plain-api",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Example merchant backend of the PSP platform without an SDK: signs Merchant API requests, builds payment widget links and verifies webhooks by hand",
+  "license": "MIT",
+  "type": "module",
+  "engines": {
+    "node": ">=22.18 <23"
+  },
+  "scripts": {
+    "dev": "node --watch --env-file-if-exists=.env src/main.ts",
+    "start": "node --env-file-if-exists=.env dist/main.js",
+    "build": "tsc -p tsconfig.build.json",
+    "typecheck": "tsc",
+    "lint": "eslint . --max-warnings 0",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
+    "test": "vitest run",
+    "ci": "pnpm run typecheck && pnpm run lint && pnpm run format:check && pnpm run test && pnpm run build"
+  },
+  "dependencies": {
+    "@fastify/static": "^8.2",
+    "@psp-examples/contract": "workspace:*",
+    "fastify": "^5.4"
+  },
+  "devDependencies": {
+    "@types/node": "^22",
+    "eslint": "^9.39",
+    "prettier": "^3.6",
+    "typescript": "~5.9.3",
+    "typescript-eslint": "^8.46",
+    "vitest": "^3.2"
+  }
+}
