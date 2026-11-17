@@ -1,0 +1,10 @@
+name: Feature request
+description: Something the SDK, the widget or the examples should do
+labels: [enhancement]
+body:
+  - type: textarea
+    id: what
+    attributes:
+      label: What you need and why
+    validations:
+      required: true

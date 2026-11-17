@@ -1,0 +1,30 @@
+name: Bug report
+description: Something in @qubiq-psp/sdk, @qubiq-psp/react or an example does not work as documented
+labels: [bug]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        **Never paste an API secret (`psp_sk_…`), a real webhook body or other credentials.** Replace them with `…`.
+        A security issue goes to the Security tab, not here.
+  - type: dropdown
+    id: package
+    attributes:
+      label: Package
+      options: ['@qubiq-psp/sdk', '@qubiq-psp/react', 'an example']
+    validations:
+      required: true
+  - type: input
+    id: version
+    attributes:
+      label: Package version, Node.js version, framework
+      placeholder: '@qubiq-psp/sdk 0.2.2, Node.js 22.20, NestJS 11'
+    validations:
+      required: true
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened and what you expected
+      description: The code that fails, the error with its `errorCode`, and the `X-Request-Id` of the response if there is one.
+    validations:
+      required: true

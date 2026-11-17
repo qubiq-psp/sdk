@@ -8,6 +8,10 @@
     "build": "pnpm -r run build",
     "test": "pnpm -r run test",
     "lockfile:check": "node scripts/lockfile-check.mjs",
-    "ci": "pnpm run lockfile:check && pnpm -r --workspace-concurrency=1 run ci"
+    "ci": "pnpm run lockfile:check && pnpm run format:check && pnpm -r --workspace-concurrency=1 run ci",
+    "format:check": "prettier --check ."
+  },
+  "devDependencies": {
+    "prettier": "^3.6"
   }
 }

@@ -16,7 +16,8 @@ for (const block of blocks) {
   const name = block.trim().split('\n')[0].replace(/:$/, '');
   const resolution = block.match(/resolution: \{([^}]*)\}/)?.[1] ?? '';
   const tarball = resolution.match(/tarball: ([^,\s]+)/)?.[1];
-  if (/\b(repo|commit|directory|path):/.test(resolution)) problems.push(`${name}: not from the registry (${resolution.trim()})`);
+  if (/\b(repo|commit|directory|path):/.test(resolution))
+    problems.push(`${name}: not from the registry (${resolution.trim()})`);
   else if (tarball && !tarball.startsWith(REGISTRY)) problems.push(`${name}: tarball from ${tarball}`);
   else if (!/integrity: sha512-/.test(resolution)) problems.push(`${name}: no sha512 integrity`);
 }

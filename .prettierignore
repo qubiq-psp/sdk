@@ -1,0 +1,4 @@
+# The packages check themselves (their own `format:check`); generated and vendored files are not formatted.
+packages/
+pnpm-lock.yaml
+docs/import/commit-maps/
