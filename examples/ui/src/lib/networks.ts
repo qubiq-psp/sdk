@@ -54,9 +54,23 @@ export function tariffRule(
   return best?.rule ?? null;
 }
 
-/** An explorer link of a transaction by the network's template. */
+const TX_HASH = /^(0x)?[0-9a-f]{64}$/i;
+
+/**
+ * An explorer link of a transaction by the network's template (`explorerTxUrl` of `GET /api/networks`). The template is
+ * data from the platform, so it goes into `href` only if it is safe: it starts with `https://` and has `{txHash}`, the
+ * hash looks like a hash and is URL-encoded, and the result is still an `https:` URL. Otherwise there is no link and the
+ * hash is shown as text — never a `javascript:` or `data:` link under the explorer label.
+ */
 export function explorerTx(template: string | null | undefined, txHash: string): string | null {
-  return template ? template.replace('{txHash}', txHash) : null;
+  if (!template?.startsWith('https://') || !template.includes('{txHash}')) return null;
+  if (!TX_HASH.test(txHash)) return null;
+  const href = template.replace('{txHash}', encodeURIComponent(txHash));
+  try {
+    return new URL(href).protocol === 'https:' ? href : null;
+  } catch {
+    return null;
+  }
 }
 
 /** A network code for people: upper case (`TRON`, `BASE`). */
