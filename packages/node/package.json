@@ -1,7 +1,7 @@
 {
   "name": "@qubiq-psp/sdk",
-  "version": "0.2.2",
-  "description": "Node.js SDK for the PSP merchant API: signed requests, invoices, webhook settings and webhook signature verification",
+  "version": "0.3.0",
+  "description": "Node.js SDK for the PSP merchant API: signed requests to all 27 methods (invoices, balances, operations, deposits, payouts, networks, tariff, webhooks), payment widget links and webhook signature verification",
   "license": "MIT",
   "repository": {
     "type": "git",
@@ -47,7 +47,9 @@
     "invoices",
     "webhooks",
     "hmac",
-    "sdk"
+    "sdk",
+    "payouts",
+    "balances"
   ],
   "publishConfig": {
     "access": "public"

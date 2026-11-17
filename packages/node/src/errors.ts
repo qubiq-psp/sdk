@@ -3,8 +3,9 @@
 //   PspAuthError      — the 401 api_auth_failed subclass, with both strings to sign for debugging;
 //   PspConnectionError — no answer: the connection failed or broke (PspTimeoutError — the timeout ran out);
 //   PspUnexpectedResponseError — an answer that is not the API: a redirect, an HTML page of a proxy, broken JSON.
+import type { NativeAmount } from './types';
 
-/** Error codes the 13 operations of the SDK can return (gateway docs/13-merchant-api.md, 13.14). */
+/** Error codes the 27 operations of the SDK can return (gateway docs/13-merchant-api.md, 13.14). */
 export type PspErrorCode = keyof PspErrorDetailsMap;
 
 /** Why the signature of a request was refused (gateway 13.4). */
@@ -38,6 +39,35 @@ export interface PspErrorDetailsMap {
   asset_disabled: { network: string; asset: string; operation: string };
   /** The amount must be from `min` to `max`. */
   amount_out_of_range: { network: string; asset: string; min: string; max: string | null; actual: string };
+  /**
+   * A payout is outside a limit: `minAmount` (`max` is the payout minimum), `maxAmount`, `dailyLimitPerMerchant`
+   * (`actual` — your payouts of the UTC day with this one) or `dailyLimitTotal` of the platform (`actual: null`).
+   */
+  limit_exceeded: {
+    limit: 'minAmount' | 'maxAmount' | 'dailyLimitPerMerchant' | 'dailyLimitTotal';
+    network: string;
+    asset: string;
+    max: string;
+    actual: string | null;
+  };
+  /** The recipient address is not in the format of the network. */
+  invalid_address: { network: string; addresses: string[] };
+  /** The recipient address belongs to the platform, e.g. an invoice address. */
+  own_address: { network: string; address: string };
+  /** Not enough funds for the payout with the fees: no more than `maxAmount` can be paid out. */
+  insufficient_balance: { network: string; asset: string; available: string; required: string; maxAmount: string };
+  /** The network is expensive now: the network fee ceiling is above the platform limit. Quote again later. */
+  network_fee_too_high: {
+    network: string;
+    networkFeeEstimated: NativeAmount;
+    maxNetworkFee: NativeAmount;
+    /** The platform limit in the native coin. */
+    max: string;
+    /** Only TRON, otherwise `null`. */
+    feeTrxEstimated: string | null;
+    /** Only TRON, otherwise `null`. */
+    maxFeeTrx: string | null;
+  };
   api_auth_failed: ApiAuthFailedDetails;
   ip_not_allowed: { ip: string };
   merchant_blocked: null;
@@ -49,9 +79,13 @@ export interface PspErrorDetailsMap {
   not_found: { object: string; id: string | null };
   /** The `externalId` is taken by an invoice with other fields: read `invoiceId` or use a new `externalId`. */
   invoice_conflict: { invoiceId: string };
+  /** The `externalId` is taken by a payout with other fields: read `payoutId`. */
+  payout_conflict: { payoutId: string };
   invalid_state: { object: string; id: string; status: string; allowed: string[] };
   invoice_has_payments: { received: string; pending: string; held: string };
   tariff_not_configured: { operationType: string; network: string; asset: string };
+  /** The network did not accept the transfer estimate: check the address, quote again later. */
+  network_service_rejected: { network: string };
   merchant_paused: null;
   url_not_set: null;
   secret_not_set: null;
@@ -66,6 +100,11 @@ export interface PspErrorDetailsMap {
   operations_paused: { flag: string; reason: string | null };
   address_pool_unavailable: { network: string };
   network_service_unavailable: { network: string };
+  /**
+   * No rate of the native coin `currency` for a network fee in the payout asset. Quote again later, or keep the
+   * native coin on the balance: then no rate is needed.
+   */
+  rate_unavailable: { reason: 'unavailable' | 'deviation' | 'disabled'; currency: string };
   net_unavailable: { net: string };
 }
 

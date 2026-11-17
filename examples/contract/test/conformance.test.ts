@@ -1,0 +1,12 @@
+// The conformance suite against the reference backend: proves the suite passes for a correct implementation.
+import { describe, it } from 'vitest';
+import { defineConformanceSuite, expectStartRefusesLiveKey } from '../src/conformance/index.ts';
+import { startReferenceBackend } from './reference-backend.ts';
+
+defineConformanceSuite({ name: 'plain', start: startReferenceBackend });
+
+describe('testnet guard', () => {
+  it('the reference backend refuses a live key unless APP_TESTNET_ONLY=false', async () => {
+    await expectStartRefusesLiveKey(startReferenceBackend);
+  });
+});

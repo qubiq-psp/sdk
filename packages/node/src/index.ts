@@ -28,7 +28,13 @@ export type {
   PspErrorDetailsMap,
 } from './errors';
 export type { AccountResource } from './resources/account';
+export type { BalancesResource } from './resources/balances';
+export type { DepositsResource } from './resources/deposits';
 export type { InvoicesResource } from './resources/invoices';
+export type { NetworksResource } from './resources/networks';
+export type { OperationsResource } from './resources/operations';
+export type { PayoutsResource } from './resources/payouts';
+export type { TariffResource } from './resources/tariff';
 export type {
   DeliveriesResource,
   WebhookSettingsResource,

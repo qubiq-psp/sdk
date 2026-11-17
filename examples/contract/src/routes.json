@@ -1,0 +1,314 @@
+[
+  {
+    "operationId": "getAccount",
+    "method": "GET",
+    "path": "/api/account",
+    "merchantApi": "getAccount",
+    "sdkMethod": "account.get",
+    "extra": false
+  },
+  {
+    "operationId": "createInvoice",
+    "method": "POST",
+    "path": "/api/invoices",
+    "merchantApi": "createInvoice",
+    "sdkMethod": "invoices.create",
+    "extra": false
+  },
+  {
+    "operationId": "listInvoices",
+    "method": "GET",
+    "path": "/api/invoices",
+    "merchantApi": "listInvoices",
+    "sdkMethod": "invoices.list",
+    "extra": false
+  },
+  {
+    "operationId": "getInvoice",
+    "method": "GET",
+    "path": "/api/invoices/{invoiceId}",
+    "merchantApi": "getInvoice",
+    "sdkMethod": "invoices.get",
+    "extra": false
+  },
+  {
+    "operationId": "listInvoiceEvents",
+    "method": "GET",
+    "path": "/api/invoices/{invoiceId}/events",
+    "merchantApi": "listInvoiceEvents",
+    "sdkMethod": "invoices.listEvents",
+    "extra": false
+  },
+  {
+    "operationId": "cancelInvoice",
+    "method": "POST",
+    "path": "/api/invoices/{invoiceId}/cancel",
+    "merchantApi": "cancelInvoice",
+    "sdkMethod": "invoices.cancel",
+    "extra": false
+  },
+  {
+    "operationId": "getMerchantBalances",
+    "method": "GET",
+    "path": "/api/balances",
+    "merchantApi": "getMerchantBalances",
+    "sdkMethod": "balances.get",
+    "extra": false
+  },
+  {
+    "operationId": "listMerchantOperations",
+    "method": "GET",
+    "path": "/api/operations",
+    "merchantApi": "listMerchantOperations",
+    "sdkMethod": "operations.list",
+    "extra": false
+  },
+  {
+    "operationId": "getMerchantOperationsSummary",
+    "method": "GET",
+    "path": "/api/operations/summary",
+    "merchantApi": "getMerchantOperationsSummary",
+    "sdkMethod": "operations.getSummary",
+    "extra": false
+  },
+  {
+    "operationId": "getMerchantOperationsStatement",
+    "method": "GET",
+    "path": "/api/operations/statement",
+    "merchantApi": "getMerchantOperationsStatement",
+    "sdkMethod": "operations.getStatement",
+    "extra": false
+  },
+  {
+    "operationId": "getMerchantOperation",
+    "method": "GET",
+    "path": "/api/operations/{operationId}",
+    "merchantApi": "getMerchantOperation",
+    "sdkMethod": "operations.get",
+    "extra": false
+  },
+  {
+    "operationId": "listMerchantDeposits",
+    "method": "GET",
+    "path": "/api/deposits",
+    "merchantApi": "listMerchantDeposits",
+    "sdkMethod": "deposits.list",
+    "extra": false
+  },
+  {
+    "operationId": "getMerchantDeposit",
+    "method": "GET",
+    "path": "/api/deposits/{depositId}",
+    "merchantApi": "getMerchantDeposit",
+    "sdkMethod": "deposits.get",
+    "extra": false
+  },
+  {
+    "operationId": "quotePayout",
+    "method": "POST",
+    "path": "/api/payouts/quote",
+    "merchantApi": "quotePayout",
+    "sdkMethod": "payouts.quote",
+    "extra": false
+  },
+  {
+    "operationId": "createPayout",
+    "method": "POST",
+    "path": "/api/payouts",
+    "merchantApi": "createPayout",
+    "sdkMethod": "payouts.create",
+    "extra": false
+  },
+  {
+    "operationId": "listPayouts",
+    "method": "GET",
+    "path": "/api/payouts",
+    "merchantApi": "listPayouts",
+    "sdkMethod": "payouts.list",
+    "extra": false
+  },
+  {
+    "operationId": "getPayout",
+    "method": "GET",
+    "path": "/api/payouts/{payoutId}",
+    "merchantApi": "getPayout",
+    "sdkMethod": "payouts.get",
+    "extra": false
+  },
+  {
+    "operationId": "cancelPayout",
+    "method": "POST",
+    "path": "/api/payouts/{payoutId}/cancel",
+    "merchantApi": "cancelPayout",
+    "sdkMethod": "payouts.cancel",
+    "extra": false
+  },
+  {
+    "operationId": "listNetworks",
+    "method": "GET",
+    "path": "/api/networks",
+    "merchantApi": "listNetworks",
+    "sdkMethod": "networks.list",
+    "extra": false
+  },
+  {
+    "operationId": "getMerchantTariff",
+    "method": "GET",
+    "path": "/api/tariff",
+    "merchantApi": "getMerchantTariff",
+    "sdkMethod": "tariff.get",
+    "extra": false
+  },
+  {
+    "operationId": "getWebhookSettings",
+    "method": "GET",
+    "path": "/api/webhook",
+    "merchantApi": "getWebhookSettings",
+    "sdkMethod": "webhook.get",
+    "extra": false
+  },
+  {
+    "operationId": "setWebhookUrl",
+    "method": "PUT",
+    "path": "/api/webhook",
+    "merchantApi": "setWebhookUrl",
+    "sdkMethod": "webhook.setUrl",
+    "extra": false
+  },
+  {
+    "operationId": "removeWebhookUrl",
+    "method": "DELETE",
+    "path": "/api/webhook",
+    "merchantApi": "removeWebhookUrl",
+    "sdkMethod": "webhook.removeUrl",
+    "extra": false
+  },
+  {
+    "operationId": "sendTestWebhook",
+    "method": "POST",
+    "path": "/api/webhook/test",
+    "merchantApi": "sendTestWebhook",
+    "sdkMethod": "webhook.sendTest",
+    "extra": false
+  },
+  {
+    "operationId": "listDeliveries",
+    "method": "GET",
+    "path": "/api/webhook/deliveries",
+    "merchantApi": "listDeliveries",
+    "sdkMethod": "webhook.deliveries.list",
+    "extra": false
+  },
+  {
+    "operationId": "getDelivery",
+    "method": "GET",
+    "path": "/api/webhook/deliveries/{deliveryId}",
+    "merchantApi": "getDelivery",
+    "sdkMethod": "webhook.deliveries.get",
+    "extra": false
+  },
+  {
+    "operationId": "redeliverDelivery",
+    "method": "POST",
+    "path": "/api/webhook/deliveries/{deliveryId}/redeliver",
+    "merchantApi": "redeliverDelivery",
+    "sdkMethod": "webhook.deliveries.redeliver",
+    "extra": false
+  },
+  {
+    "operationId": "getConfig",
+    "method": "GET",
+    "path": "/api/config",
+    "merchantApi": null,
+    "sdkMethod": null,
+    "extra": true
+  },
+  {
+    "operationId": "createCheckoutLink",
+    "method": "POST",
+    "path": "/api/invoices/{invoiceId}/checkout-link",
+    "merchantApi": null,
+    "sdkMethod": null,
+    "extra": true
+  },
+  {
+    "operationId": "listRequestLog",
+    "method": "GET",
+    "path": "/api/request-log",
+    "merchantApi": null,
+    "sdkMethod": null,
+    "extra": true
+  },
+  {
+    "operationId": "clearRequestLog",
+    "method": "DELETE",
+    "path": "/api/request-log",
+    "merchantApi": null,
+    "sdkMethod": null,
+    "extra": true
+  },
+  {
+    "operationId": "getRequestLogEntry",
+    "method": "GET",
+    "path": "/api/request-log/{entryId}",
+    "merchantApi": null,
+    "sdkMethod": null,
+    "extra": true
+  },
+  {
+    "operationId": "streamEvents",
+    "method": "GET",
+    "path": "/api/stream",
+    "merchantApi": null,
+    "sdkMethod": null,
+    "extra": true
+  },
+  {
+    "operationId": "listReceivedWebhooks",
+    "method": "GET",
+    "path": "/api/received-webhooks",
+    "merchantApi": null,
+    "sdkMethod": null,
+    "extra": true
+  },
+  {
+    "operationId": "clearReceivedWebhooks",
+    "method": "DELETE",
+    "path": "/api/received-webhooks",
+    "merchantApi": null,
+    "sdkMethod": null,
+    "extra": true
+  },
+  {
+    "operationId": "getReceivedWebhook",
+    "method": "GET",
+    "path": "/api/received-webhooks/{receivedId}",
+    "merchantApi": null,
+    "sdkMethod": null,
+    "extra": true
+  },
+  {
+    "operationId": "getReceiverSettings",
+    "method": "GET",
+    "path": "/api/receiver",
+    "merchantApi": null,
+    "sdkMethod": null,
+    "extra": true
+  },
+  {
+    "operationId": "setReceiverSettings",
+    "method": "PUT",
+    "path": "/api/receiver",
+    "merchantApi": null,
+    "sdkMethod": null,
+    "extra": true
+  },
+  {
+    "operationId": "receivePspWebhook",
+    "method": "POST",
+    "path": "/webhooks/psp",
+    "merchantApi": null,
+    "sdkMethod": null,
+    "extra": true
+  }
+]

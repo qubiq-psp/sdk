@@ -18,6 +18,19 @@ Start with the README of each package: [`packages/node`](packages/node/README.md
 [`packages/react`](packages/react/README.md). What changed in each version: [`@qubiq-psp/sdk`](packages/node/CHANGELOG.md),
 [`@qubiq-psp/react`](packages/react/CHANGELOG.md).
 
+## Versions
+
+The two packages are versioned independently: each follows [Semantic Versioning](https://semver.org/) and is released
+when it changes. Any version of `@qubiq-psp/sdk` works with any version of `@qubiq-psp/react` — they do not depend on
+each other; each follows the platform:
+
+| Package            | Follows                                                                           |
+| ------------------ | --------------------------------------------------------------------------------- |
+| `@qubiq-psp/sdk`   | Merchant API `v1` (`/api/v1/*`), webhook signature `v1`, payment widget link `v1` |
+| `@qubiq-psp/react` | the payment page protocol `v1` (the widget link and its `postMessage` events)     |
+
+When a change of the platform needs a matching pair, this table says which versions belong together.
+
 ## Security
 
 The API secret lives only on the merchant's server: never in the frontend, the repository or logs. Report a
@@ -26,7 +39,8 @@ with npm provenance.
 
 ## Development
 
-Node.js 22 and pnpm (pinned in `package.json`, enabled by `corepack enable`).
+Node.js 22 and pnpm (pinned with its sha512 in `packageManager` of `package.json`, enabled by `corepack enable`, which
+refuses a download with another hash).
 
 ```bash
 pnpm install            # one lockfile for the whole workspace
@@ -34,7 +48,8 @@ pnpm run ci             # lockfile check, then every check of every package
 pnpm --filter @qubiq-psp/sdk test
 ```
 
-`pnpm-lock.yaml` may only hold packages from `registry.npmjs.org` with an integrity hash (`pnpm lockfile:check`).
+`pnpm-lock.yaml` may only hold packages from `registry.npmjs.org` with an integrity hash, and `link:` only to workspace
+packages of this repository (`pnpm lockfile:check`).
 
 The types of `@qubiq-psp/sdk` follow the public Merchant API of the platform. `packages/node/api/openapi.v1.json` is a
 copy of it: `pnpm api:sync <path>` in `packages/node` updates the copy and the generated types, and `pnpm api:check`
@@ -47,6 +62,8 @@ How to contribute: [CONTRIBUTING.md](CONTRIBUTING.md).
 A tag on a commit of `main` releases one package: `node-v<version>` — `@qubiq-psp/sdk`, `react-v<version>` —
 `@qubiq-psp/react` (`.github/workflows/release.yml`). The version waits in the staged queue of npmjs.com until a
 maintainer approves it with 2FA; it is published with provenance through npm trusted publishing, without a stored token.
+The build installs only the released package and its workspace dependencies, and the publish job stages exactly the
+tarball the build checked (its SHA-256 is a job output, verified after the download).
 
 ## History
 

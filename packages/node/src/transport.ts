@@ -11,7 +11,7 @@ import {
   type PspErrorContext,
 } from './errors';
 import { buildQuery, pathSegment, resolveTarget, type QueryParams } from './query';
-import { ROUTES, type OperationId, type RetryRule } from './routes';
+import { ROUTES, type OperationId, type RetryRule, type Route } from './routes';
 import { signRequest } from './signing';
 
 /** Per-call options, accepted by every method as the last argument. */
@@ -46,7 +46,8 @@ const responseMeta = new WeakMap<object, ResponseMeta>();
 
 /**
  * HTTP details of an object returned by an SDK method (an invoice, a page, settings…):
- * `getResponseMeta(invoice)?.status === 201`. `undefined` for other objects.
+ * `getResponseMeta(invoice)?.status === 201`. `undefined` for other objects and for the CSV statement, a string
+ * (use the `onResponse` hook to log its `X-Request-Id`).
  */
 export function getResponseMeta(value: object): ResponseMeta | undefined {
   return responseMeta.get(value);
@@ -60,6 +61,8 @@ export interface CallInput {
   /** JSON body; `undefined` — a request without a body. */
   body?: unknown;
   options?: RequestOptions | undefined;
+  /** `csv` — a successful answer is `text/csv` and is returned as a string; errors are JSON as always. */
+  responseType?: 'json' | 'csv';
 }
 
 const CLIENT_REQUEST_ID_RE = /^[\x21-\x7E]{1,128}$/;
@@ -143,7 +146,8 @@ export class Transport {
   }
 
   async call<T>(operationId: OperationId, input: CallInput = {}): Promise<T> {
-    const route = ROUTES[operationId];
+    const route: Route = ROUTES[operationId];
+    const csv = input.responseType === 'csv';
     const options = input.options ?? {};
     const path = route.path.replace(/\{(\w+)\}/g, (_, name: string) => {
       const value = input.path?.[name];
@@ -158,7 +162,8 @@ export class Transport {
     if (clientRequestId !== undefined && !CLIENT_REQUEST_ID_RE.test(clientRequestId)) {
       throw new TypeError('clientRequestId must be 1–128 printable ASCII characters without spaces');
     }
-    const timeoutMs = options.timeoutMs ?? this.#config.timeoutMs;
+    // A payout request may take gateway up to 130 s: a lower client default is raised for it (gateway 13.10)
+    const timeoutMs = options.timeoutMs ?? Math.max(this.#config.timeoutMs, route.minTimeoutMs ?? 0);
     if (!Number.isFinite(timeoutMs) || timeoutMs <= 0 || timeoutMs > MAX_TIMER_MS) {
       throw new TypeError(`timeoutMs must be from 1 to ${MAX_TIMER_MS}`);
     }
@@ -185,7 +190,7 @@ export class Transport {
       });
       const headers: Record<string, string> = {
         ...signed.headers,
-        Accept: 'application/json',
+        Accept: csv ? 'text/csv, application/json' : 'application/json',
         'User-Agent': this.#config.userAgent,
       };
       if (body !== null) headers['Content-Type'] = 'application/json';
@@ -215,7 +220,7 @@ export class Transport {
         error = outcome as PspError;
       } else {
         this.#warnDeprecatedKey(exchange.response.headers);
-        const result = this.#interpret(exchange, signed, context);
+        const result = this.#interpret(exchange, signed, context, csv);
         if (!(result instanceof PspError)) return result as T;
         error = result;
       }
@@ -291,6 +296,7 @@ export class Transport {
     { response, text }: Exchange,
     signed: { stringToSign: string; timestamp: string },
     context: PspErrorContext,
+    csv: boolean,
   ): unknown {
     const { status, headers } = response;
     const requestId = headers.get('x-request-id');
@@ -299,6 +305,13 @@ export class Transport {
 
     if (status >= 300 && status < 400) {
       return unexpected(`Redirect ${status} to ${headers.get('location') ?? '?'}: check baseUrl`);
+    }
+    if (csv && status >= 200 && status < 300) {
+      const contentType = headers.get('content-type') ?? '';
+      if (!/^text\/csv\b/i.test(contentType)) {
+        return unexpected(`HTTP ${status} with ${contentType || 'no Content-Type'} instead of text/csv: check baseUrl`);
+      }
+      return text === '' ? unexpected(`HTTP ${status} without a body`) : text;
     }
     let json: unknown;
     try {

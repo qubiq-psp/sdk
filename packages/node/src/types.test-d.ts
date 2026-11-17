@@ -4,19 +4,52 @@ import { describe, expectTypeOf, it } from 'vitest';
 import type { components, operations } from './generated/schema';
 import type {
   Account,
+  AssetAmount,
   CancelInvoiceParams,
+  CancelPayoutParams,
   CreateInvoiceParams,
+  CreatePayoutParams,
+  CurrencyBalance,
   Delivery,
   DeliveryAttempt,
   DeliveryWithAttempts,
+  Deposit,
+  DepositPage,
+  DepositTotals,
+  GetBalancesParams,
   Invoice,
   InvoiceEvent,
   InvoicePayment,
   InvoiceWithPayments,
   ListDeliveriesParams,
+  ListDepositsParams,
   ListInvoicesParams,
+  ListOperationsParams,
+  ListPayoutsParams,
+  MerchantBalance,
+  MerchantBalances,
+  NativeAmount,
+  Network,
+  NetworkAsset,
+  Networks,
+  Operation,
+  OperationDestination,
+  OperationFeeDetails,
+  OperationNetworkFee,
+  OperationsPeriodParams,
+  OperationsSummary,
+  OperationsSummaryItem,
   Page,
+  Payout,
+  PayoutNetworkFee,
+  PayoutQuote,
+  QuotePayoutParams,
   SendTestWebhookParams,
+  Statement,
+  StatementItem,
+  StatementParams,
+  Tariff,
+  TariffRule,
   WebhookEventType,
   WebhookSettings,
 } from './types';
@@ -77,6 +110,51 @@ describe('responses', () => {
     expectTypeOf<Same<DeliveryWithAttempts, Json<'sendTestWebhook', 201>>>().toEqualTypeOf<true>();
     expectTypeOf<Same<Delivery, Json<'redeliverDelivery', 200>>>().toEqualTypeOf<true>();
   });
+
+  it('balances, operations and statement', () => {
+    expectTypeOf<Same<MerchantBalance, Schemas['V1MerchantBalance']>>().toEqualTypeOf<true>();
+    expectTypeOf<Same<CurrencyBalance, Schemas['V1CurrencyBalance']>>().toEqualTypeOf<true>();
+    expectTypeOf<Same<MerchantBalances, Json<'getMerchantBalances', 200>>>().toEqualTypeOf<true>();
+    expectTypeOf<Same<Operation, Schemas['V1Operation']>>().toEqualTypeOf<true>();
+    expectTypeOf<Same<OperationDestination, Schemas['V1OperationDestination']>>().toEqualTypeOf<true>();
+    expectTypeOf<Same<OperationFeeDetails, Schemas['V1OperationFeeDetails']>>().toEqualTypeOf<true>();
+    expectTypeOf<Same<OperationNetworkFee, Schemas['V1OperationNetworkFee']>>().toEqualTypeOf<true>();
+    expectTypeOf<Same<NativeAmount, Schemas['V1NativeAmount']>>().toEqualTypeOf<true>();
+    expectTypeOf<Same<Page<Operation>, Json<'listMerchantOperations', 200>>>().toEqualTypeOf<true>();
+    expectTypeOf<Same<Operation, Json<'getMerchantOperation', 200>>>().toEqualTypeOf<true>();
+    expectTypeOf<Same<OperationsSummaryItem, Schemas['V1OperationsSummaryItem']>>().toEqualTypeOf<true>();
+    expectTypeOf<Same<OperationsSummary, Json<'getMerchantOperationsSummary', 200>>>().toEqualTypeOf<true>();
+    expectTypeOf<Same<StatementItem, Schemas['V1StatementItem']>>().toEqualTypeOf<true>();
+    expectTypeOf<Same<Statement, Json<'getMerchantOperationsStatement', 200>>>().toEqualTypeOf<true>();
+  });
+
+  it('deposits', () => {
+    expectTypeOf<Same<Deposit, Schemas['V1Deposit']>>().toEqualTypeOf<true>();
+    expectTypeOf<Same<DepositTotals, Schemas['V1DepositTotals']>>().toEqualTypeOf<true>();
+    expectTypeOf<Same<DepositPage, Json<'listMerchantDeposits', 200>>>().toEqualTypeOf<true>();
+    expectTypeOf<Same<Deposit, Json<'getMerchantDeposit', 200>>>().toEqualTypeOf<true>();
+  });
+
+  it('payouts', () => {
+    expectTypeOf<Same<Payout, Schemas['V1Payout']>>().toEqualTypeOf<true>();
+    expectTypeOf<Same<PayoutNetworkFee, Schemas['V1PayoutNetworkFee']>>().toEqualTypeOf<true>();
+    expectTypeOf<Same<AssetAmount, Schemas['V1AssetAmount']>>().toEqualTypeOf<true>();
+    expectTypeOf<Same<PayoutQuote, Schemas['V1PayoutQuote']>>().toEqualTypeOf<true>();
+    expectTypeOf<Same<PayoutQuote, Json<'quotePayout', 201>>>().toEqualTypeOf<true>();
+    expectTypeOf<Same<Payout, Json<'createPayout', 201>>>().toEqualTypeOf<true>();
+    expectTypeOf<Same<Payout, Json<'createPayout', 200>>>().toEqualTypeOf<true>();
+    expectTypeOf<Same<Page<Payout>, Json<'listPayouts', 200>>>().toEqualTypeOf<true>();
+    expectTypeOf<Same<Payout, Json<'getPayout', 200>>>().toEqualTypeOf<true>();
+    expectTypeOf<Same<Payout, Json<'cancelPayout', 200>>>().toEqualTypeOf<true>();
+  });
+
+  it('networks and tariff', () => {
+    expectTypeOf<Same<NetworkAsset, Schemas['V1NetworkAsset']>>().toEqualTypeOf<true>();
+    expectTypeOf<Same<Network, Schemas['V1Network']>>().toEqualTypeOf<true>();
+    expectTypeOf<Same<Networks, Json<'listNetworks', 200>>>().toEqualTypeOf<true>();
+    expectTypeOf<Same<TariffRule, Schemas['V1TariffRule']>>().toEqualTypeOf<true>();
+    expectTypeOf<Same<Tariff, Json<'getMerchantTariff', 200>>>().toEqualTypeOf<true>();
+  });
 });
 
 describe('webhook types', () => {
@@ -92,6 +170,9 @@ describe('request bodies', () => {
     expectTypeOf<Same<CancelInvoiceParams, Body<'cancelInvoice'>>>().toEqualTypeOf<true>();
     expectTypeOf<Same<SendTestWebhookParams, Body<'sendTestWebhook'>>>().toEqualTypeOf<true>();
     expectTypeOf<Same<{ url: string }, Body<'setWebhookUrl'>>>().toEqualTypeOf<true>();
+    expectTypeOf<Same<QuotePayoutParams, Body<'quotePayout'>>>().toEqualTypeOf<true>();
+    expectTypeOf<Same<CreatePayoutParams, Body<'createPayout'>>>().toEqualTypeOf<true>();
+    expectTypeOf<Same<CancelPayoutParams, Body<'cancelPayout'>>>().toEqualTypeOf<true>();
   });
 });
 
@@ -100,7 +181,21 @@ describe('query parameters', () => {
     expectTypeOf<Same<keyof ListInvoicesParams, keyof Query<'listInvoices'>>>().toEqualTypeOf<true>();
     expectTypeOf<Same<keyof ListDeliveriesParams, keyof Query<'listDeliveries'>>>().toEqualTypeOf<true>();
     expectTypeOf<Same<'page' | 'limit', keyof Query<'listInvoiceEvents'>>>().toEqualTypeOf<true>();
+    expectTypeOf<Same<keyof GetBalancesParams, keyof Query<'getMerchantBalances'>>>().toEqualTypeOf<true>();
+    expectTypeOf<Same<keyof ListOperationsParams, keyof Query<'listMerchantOperations'>>>().toEqualTypeOf<true>();
+    expectTypeOf<
+      Same<keyof OperationsPeriodParams, keyof Query<'getMerchantOperationsSummary'>>
+    >().toEqualTypeOf<true>();
+    expectTypeOf<Same<keyof StatementParams, keyof Query<'getMerchantOperationsStatement'>>>().toEqualTypeOf<true>();
+    expectTypeOf<Same<keyof ListDepositsParams, keyof Query<'listMerchantDeposits'>>>().toEqualTypeOf<true>();
+    expectTypeOf<Same<keyof ListPayoutsParams, keyof Query<'listPayouts'>>>().toEqualTypeOf<true>();
     expectTypeOf<Query<'listInvoices'>>().toExtend<ListInvoicesParams>();
     expectTypeOf<Query<'listDeliveries'>>().toExtend<ListDeliveriesParams>();
+    expectTypeOf<Query<'getMerchantBalances'>>().toExtend<GetBalancesParams>();
+    expectTypeOf<Query<'listMerchantOperations'>>().toExtend<ListOperationsParams>();
+    expectTypeOf<Query<'getMerchantOperationsSummary'>>().toExtend<OperationsPeriodParams>();
+    expectTypeOf<Query<'getMerchantOperationsStatement'>>().toExtend<StatementParams>();
+    expectTypeOf<Query<'listMerchantDeposits'>>().toExtend<ListDepositsParams>();
+    expectTypeOf<Query<'listPayouts'>>().toExtend<ListPayoutsParams>();
   });
 });

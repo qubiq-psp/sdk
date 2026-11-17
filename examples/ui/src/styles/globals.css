@@ -1,0 +1,171 @@
+/* Styles: Tailwind and the tokens of the light and dark themes. The dark theme follows the system setting
+   (prefers-color-scheme), without scripts. System fonts: nothing to download. */
+@import 'tailwindcss';
+@import 'tw-animate-css';
+
+@theme inline {
+  --font-sans: ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  --font-mono: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+
+  --color-status-success-fg: var(--status-success-fg);
+  --color-status-success-bg: var(--status-success-bg);
+  --color-status-success-border: var(--status-success-border);
+  --color-status-info-fg: var(--status-info-fg);
+  --color-status-info-bg: var(--status-info-bg);
+  --color-status-info-border: var(--status-info-border);
+  --color-status-warning-fg: var(--status-warning-fg);
+  --color-status-warning-bg: var(--status-warning-bg);
+  --color-status-warning-border: var(--status-warning-border);
+  --color-status-danger-fg: var(--status-danger-fg);
+  --color-status-danger-bg: var(--status-danger-bg);
+  --color-status-danger-border: var(--status-danger-border);
+  --color-status-neutral-fg: var(--status-neutral-fg);
+  --color-status-neutral-bg: var(--status-neutral-bg);
+  --color-status-neutral-border: var(--status-neutral-border);
+  --color-status-muted-fg: var(--status-muted-fg);
+  --color-status-muted-bg: var(--status-muted-bg);
+  --color-status-muted-border: var(--status-muted-border);
+
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 4px);
+}
+
+:root {
+  --radius: 0.5rem;
+
+  /* Surfaces */
+  --background: #f9f9f7;
+  --foreground: #0b0b0b;
+  --card: #fcfcfb;
+  --card-foreground: #0b0b0b;
+  --popover: #fcfcfb;
+  --popover-foreground: #0b0b0b;
+  --primary: #1f1f1d;
+  --primary-foreground: #fcfcfb;
+  --secondary: #efeee9;
+  --secondary-foreground: #1f1f1d;
+  --muted: #f0efec;
+  --muted-foreground: #52514e;
+  --accent: #ecebe6;
+  --accent-foreground: #1f1f1d;
+  --destructive: #a12a2a;
+  --destructive-foreground: #ffffff;
+  --border: #e1e0d9;
+  --input: #d6d5ce;
+  --ring: #2a78d6;
+
+  /* Status tones: text / background / border */
+  --status-success-fg: #006300;
+  --status-success-bg: #e3f3e3;
+  --status-success-border: #9fd09f;
+  --status-info-fg: #1c5cab;
+  --status-info-bg: #e3eefb;
+  --status-info-border: #a9c8ef;
+  --status-warning-fg: #7a4d00;
+  --status-warning-bg: #fdf1d6;
+  --status-warning-border: #edc97a;
+  --status-danger-fg: #a12a2a;
+  --status-danger-bg: #fbe7e7;
+  --status-danger-border: #ec9f9f;
+  --status-neutral-fg: #52514e;
+  --status-neutral-bg: #f0efec;
+  --status-neutral-border: #d6d5ce;
+  --status-muted-fg: #6b6a65;
+  --status-muted-bg: transparent;
+  --status-muted-border: #e1e0d9;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --background: #0d0d0d;
+    --foreground: #ffffff;
+    --card: #1a1a19;
+    --card-foreground: #ffffff;
+    --popover: #1a1a19;
+    --popover-foreground: #ffffff;
+    --primary: #f2f2ef;
+    --primary-foreground: #0d0d0d;
+    --secondary: #262624;
+    --secondary-foreground: #f2f2ef;
+    --muted: #262624;
+    --muted-foreground: #c3c2b7;
+    --accent: #2c2c2a;
+    --accent-foreground: #f2f2ef;
+    --destructive: #b42c2c;
+    --destructive-foreground: #ffffff;
+    --border: #2c2c2a;
+    --input: #3a3a37;
+    --ring: #3987e5;
+
+    --status-success-fg: #7fd67f;
+    --status-success-bg: #13301a;
+    --status-success-border: #2f6b3a;
+    --status-info-fg: #8fbaf0;
+    --status-info-bg: #13284a;
+    --status-info-border: #2c4f80;
+    --status-warning-fg: #f5c86a;
+    --status-warning-bg: #3a2c0c;
+    --status-warning-border: #6e5420;
+    --status-danger-fg: #f19a9a;
+    --status-danger-bg: #3d1717;
+    --status-danger-border: #7a2e2e;
+    --status-neutral-fg: #c3c2b7;
+    --status-neutral-bg: #2c2c2a;
+    --status-neutral-border: #444441;
+    --status-muted-fg: #a3a29b;
+    --status-muted-bg: transparent;
+    --status-muted-border: #383835;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+
+  html {
+    color-scheme: light dark;
+  }
+
+  body {
+    @apply bg-background font-sans text-sm text-foreground antialiased;
+  }
+
+  :focus-visible {
+    outline: 2px solid var(--ring);
+    outline-offset: 2px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  ::before,
+  ::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}

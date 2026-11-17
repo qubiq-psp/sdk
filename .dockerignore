@@ -1,0 +1,25 @@
+# The build context of examples/plain/Dockerfile and examples/sdk/Dockerfile is the repository root. Each image
+# installs its own dependencies and builds from the sources, so nothing built or installed on the host goes in, and
+# no environment file: the images take their configuration from the environment at run time.
+**/node_modules
+**/dist
+**/coverage
+**/.vite
+**/.turbo
+**/*.tsbuildinfo
+**/*.log
+**/test-results
+**/playwright-report
+.git
+.github
+.DS_Store
+**/.DS_Store
+.env
+.env.*
+**/.env
+**/.env.*
+!**/.env.example
+!**/.env.*.example
+.idea
+.vscode
+graphify-out
